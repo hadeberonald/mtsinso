@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-dark;
+  }
+}
+
+@layer components {
+  /* Custom Hollow Button */
+  .btn-hollow {
+    @apply relative px-8 py-3 font-medium transition-all duration-300;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
+  
+  .btn-hollow-gold {
+    @apply text-gold border-2 border-gold bg-transparent;
+  }
+  
+  .btn-hollow-gold:hover {
+    @apply bg-gold text-black;
+  }
+  
+  .btn-hollow-white {
+    @apply text-white border-2 border-white bg-transparent;
+  }
+  
+  .btn-hollow-white:hover {
+    @apply bg-white text-black;
+  }
+  
+  /* Filled Button */
+  .btn-filled {
+    @apply relative px-8 py-3 font-medium transition-all duration-300;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
+  
+  .btn-filled-gold {
+    @apply bg-gold text-black border-2 border-gold;
+  }
+  
+  .btn-filled-gold:hover {
+    @apply bg-transparent text-gold;
+  }
+  
+  .btn-filled-white {
+    @apply bg-white text-black border-2 border-white;
+  }
+  
+  .btn-filled-white:hover {
+    @apply bg-transparent text-white;
+  }
+  
+  /* Angled Card */
+  .card-angled {
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  }
+  
+  /* Input Fields */
+  .input-field {
+    @apply w-full px-4 py-3 bg-transparent border-2 border-dark-light text-dark transition-all duration-300;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
+  
+  .input-field:focus {
+    @apply outline-none border-gold;
+  }
+  
+  .input-field-white {
+    @apply w-full px-4 py-3 bg-transparent border-2 border-white text-white transition-all duration-300;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
+  
+  .input-field-white:focus {
+    @apply outline-none border-gold;
+  }
+  
+  .input-field-white::placeholder {
+    @apply text-gray-400;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
