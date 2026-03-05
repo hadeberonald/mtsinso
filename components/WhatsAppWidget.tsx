@@ -3,133 +3,8 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
-// South African number: 27 (country code) + 72 692 1127 (no leading 0)
-const WHATSAPP_NUMBER = '27726921127'
+const WHATSAPP_NUMBER = '27795362485'
 
-export default function WhatsAppWidget() {
-  const [isOpen, setIsOpen]       = useState(false)
-  const [message, setMessage]     = useState("Hi IC Cars! I'd like to find out more about your vehicles.")
-  const [showBubble, setShowBubble] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
-
-  // Show attention bubble after 4 seconds
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (!dismissed) setShowBubble(true)
-    }, 4000)
-    return () => clearTimeout(t)
-  }, [dismissed])
-
-  const openWhatsApp = () => {
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-    window.open(url, '_blank')
-    setIsOpen(false)
-  }
-
-  const handleDismissBubble = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setShowBubble(false)
-    setDismissed(true)
-  }
-
-  return (
-    <>
-      {/* ── Attention bubble ── */}
-      {showBubble && !isOpen && (
-        <div
-          className="fixed bottom-24 right-6 z-[90] cursor-pointer"
-          onClick={() => { setIsOpen(true); setShowBubble(false) }}
-        >
-          <div
-            className="relative bg-white shadow-2xl border border-gray-100 px-4 py-3 text-sm text-gray-700 max-w-[190px] leading-snug font-medium"
-            style={{ clipPath: 'polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%)' }}
-          >
-            <button
-              onClick={handleDismissBubble}
-              className="absolute -top-2 -right-2 w-5 h-5 bg-gray-500 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors"
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-            Chat with us on WhatsApp! 👋
-            {/* Tail pointing to button */}
-            <div className="absolute -bottom-2 right-6 w-0 h-0 border-l-8 border-r-0 border-t-8 border-l-transparent border-t-white" />
-          </div>
-        </div>
-      )}
-
-      {/* ── Chat panel ── */}
-      {isOpen && (
-        <div
-          className="fixed bottom-24 right-6 z-[90] w-80 shadow-2xl border border-gray-200 overflow-hidden"
-          style={{ clipPath: 'polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%)' }}
-        >
-          {/* Header */}
-          <div className="bg-[#25D366] px-5 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {/* WhatsApp icon */}
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                <WhatsAppSVG className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-white font-bold text-sm">IC Cars</p>
-                <p className="text-white/80 text-xs">Typically replies within minutes</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-white/80 hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="bg-[#ECE5DD] px-4 py-4">
-            {/* Fake chat bubble */}
-            <div className="bg-white rounded-lg rounded-tl-none px-3 py-2 shadow-sm max-w-[85%] mb-4">
-              <p className="text-sm text-gray-700">
-                Hi there! 👋 How can we help you today? Send us a message and we'll get back to you right away.
-              </p>
-              <p className="text-[10px] text-gray-400 text-right mt-1">IC Cars</p>
-            </div>
-
-            {/* Message input */}
-            <div className="bg-white rounded-full flex items-center gap-2 px-4 py-2 shadow-sm">
-              <textarea
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                className="flex-1 text-sm text-gray-700 resize-none outline-none bg-transparent leading-snug max-h-24"
-                rows={2}
-                placeholder="Type a message..."
-              />
-              <button
-                onClick={openWhatsApp}
-                className="w-9 h-9 bg-[#25D366] rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[#1da851] transition-colors"
-              >
-                <SendSVG className="w-4 h-4 text-white ml-0.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── FAB button ── */}
-      <button
-        onClick={() => { setIsOpen(o => !o); setShowBubble(false) }}
-        className="fixed bottom-6 right-6 z-[90] w-14 h-14 bg-[#25D366] hover:bg-[#1da851] text-white shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
-        style={{ clipPath: 'polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)' }}
-        aria-label="Chat on WhatsApp"
-      >
-        {isOpen
-          ? <X className="w-6 h-6" />
-          : <WhatsAppSVG className="w-7 h-7" />
-        }
-      </button>
-    </>
-  )
-}
-
-// Inline SVGs to avoid external deps
 function WhatsAppSVG({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -138,10 +13,95 @@ function WhatsAppSVG({ className }: { className?: string }) {
   )
 }
 
-function SendSVG({ className }: { className?: string }) {
+export default function WhatsAppWidget() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [message, setMessage] = useState("Hi Mtsinso Car Sales! I would like to find out more about your vehicles.")
+  const [showBubble, setShowBubble] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => { if (!dismissed) setShowBubble(true) }, 4500)
+    return () => clearTimeout(t)
+  }, [dismissed])
+
+  const openWhatsApp = () => {
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank')
+    setIsOpen(false)
+  }
+
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-    </svg>
+    <>
+      {/* Attention bubble */}
+      {showBubble && !isOpen && (
+        <div className="fixed bottom-24 right-6 z-[90] cursor-pointer" onClick={() => { setIsOpen(true); setShowBubble(false) }}>
+          <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 px-4 py-3 text-sm text-support max-w-[190px] leading-snug font-medium">
+            <button
+              onClick={e => { e.stopPropagation(); setShowBubble(false); setDismissed(true) }}
+              className="absolute -top-2 -right-2 w-5 h-5 bg-muted hover:bg-support text-white rounded-full flex items-center justify-center transition-colors"
+            >
+              <X className="w-2.5 h-2.5" />
+            </button>
+            Chat with us on WhatsApp
+            <div className="absolute -bottom-2 right-6 w-0 h-0 border-l-8 border-r-0 border-t-8 border-l-transparent border-t-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Chat panel */}
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 z-[90] w-80 rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-[#25D366] px-5 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <WhatsAppSVG className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm">Mtsinso Car Sales</p>
+                <p className="text-white/80 text-xs">Typically replies within minutes</p>
+              </div>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white transition-colors p-1">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="bg-[#ECE5DD] px-4 py-4">
+            <div className="bg-white rounded-2xl rounded-tl-none px-3 py-2.5 shadow-sm max-w-[85%] mb-4">
+              <p className="text-sm text-support leading-relaxed">
+                Hi there! How can we help you today? Send us a message and we will get back to you right away.
+              </p>
+              <p className="text-[10px] text-muted text-right mt-1">Mtsinso Car Sales</p>
+            </div>
+
+            <div className="bg-white rounded-2xl flex items-center gap-2 px-4 py-2 shadow-sm">
+              <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                className="flex-1 text-sm text-support resize-none outline-none bg-transparent leading-snug max-h-24"
+                rows={2}
+                placeholder="Type a message..."
+              />
+              <button
+                onClick={openWhatsApp}
+                className="w-9 h-9 bg-[#25D366] rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[#1da851] transition-colors"
+              >
+                <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAB */}
+      <button
+        onClick={() => { setIsOpen(o => !o); setShowBubble(false) }}
+        className="fixed bottom-6 right-6 z-[90] w-14 h-14 bg-[#25D366] hover:bg-[#1da851] text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
+        aria-label="Chat on WhatsApp"
+      >
+        {isOpen ? <X className="w-6 h-6" /> : <WhatsAppSVG className="w-7 h-7" />}
+      </button>
+    </>
   )
 }

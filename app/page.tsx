@@ -3,26 +3,15 @@ import HeroCarousel from '@/components/HeroCarousel'
 import VehicleCard from '@/components/VehicleCard'
 import FinanceBanner from '@/components/FinanceBanner'
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ShieldCheck, TrendingUp, Users } from 'lucide-react'
 
 async function getHeroSlides() {
-  const { data, error } = await supabase
-    .from('hero_carousel')
-    .select('*')
-    .eq('active', true)
-    .order('order_index', { ascending: true })
-  if (error) { console.error('Error fetching hero slides:', error); return [] }
+  const { data } = await supabase.from('hero_carousel').select('*').eq('active', true).order('order_index')
   return data || []
 }
 
 async function getFeaturedVehicles() {
-  const { data, error } = await supabase
-    .from('vehicles')
-    .select('*')
-    .eq('status', 'available')
-    .order('created_at', { ascending: false })
-    .limit(6)
-  if (error) { console.error('Error fetching vehicles:', error); return [] }
+  const { data } = await supabase.from('vehicles').select('*').eq('status', 'available').order('created_at', { ascending: false }).limit(6)
   return data || []
 }
 
@@ -32,93 +21,108 @@ export default async function HomePage() {
   const [heroSlides, vehicles] = await Promise.all([getHeroSlides(), getFeaturedVehicles()])
 
   return (
-    <div className="pt-20">
-      {/* Hero Carousel */}
+    <div className="pt-8">
+
+      {/* Hero */}
       <HeroCarousel slides={heroSlides} />
 
-      {/* In Stock Section */}
+      {/* In Stock */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-display text-dark mb-4">
-              Vehicles <span className="text-gold">In Stock</span>
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Browse our current selection of quality vehicles. Each vehicle is thoroughly inspected
-              and comes with financing options.
-            </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
+            <div>
+              <div className="section-tag">
+                <span className="w-5 h-px bg-primary inline-block" />
+                Available Now
+              </div>
+              <h2 className="font-display text-4xl md:text-5xl text-support leading-tight">
+                Vehicles <span className="text-primary">In Stock</span>
+              </h2>
+            </div>
+            <Link href="/vehicles" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-dark transition-colors">
+              View All
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
           {vehicles.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {vehicles.map((vehicle) => (
-                  <VehicleCard key={vehicle.id} vehicle={vehicle} />
-                ))}
-              </div>
-              <div className="text-center mt-12">
-                <Link href="/vehicles" className="inline-flex items-center group">
-                  <span className="text-lg font-medium text-dark group-hover:text-gold transition-colors duration-300 mr-2">
-                    View All Vehicles
-                  </span>
-                  <ArrowRight className="w-5 h-5 text-gold group-hover:translate-x-2 transition-transform duration-300" />
-                </Link>
-              </div>
-            </>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {vehicles.map(v => <VehicleCard key={v.id} vehicle={v} />)}
+            </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No vehicles available at the moment. Check back soon!</p>
+            <div className="text-center py-20 bg-gray-50 rounded-3xl">
+              <p className="text-muted text-lg">No vehicles available at the moment. Check back soon.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* ── Finance Pre-Approval Banner ── */}
+      {/* Finance banner */}
       <FinanceBanner />
 
       {/* Why Choose Us */}
-      <section className="py-20 bg-black">
-        <div className="max-w-7xl mx-auto px-6">
+      <section className="py-20 bg-support">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-display text-white mb-4">
-              Why Choose <span className="text-gold">IC Cars</span>
+            <div className="section-tag-white justify-center">
+              <span className="w-5 h-px bg-white/40 inline-block" />
+              Our Promise
+            </div>
+            <h2 className="font-display text-4xl md:text-5xl text-white">
+              Why Choose <span className="text-primary-light">Mtsinso</span>
             </h2>
-            <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              Your trusted partner for quality vehicles in Pretoria
-            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { n: '1', title: 'Quality Assured', body: 'Every vehicle undergoes thorough inspection and quality checks before being listed for sale.' },
-              { n: '2', title: 'Flexible Financing', body: 'We work with leading financial institutions to offer competitive financing options tailored to your needs.' },
-              { n: '3', title: 'Expert Service', body: 'Our experienced team is dedicated to helping you find the perfect vehicle for your lifestyle and budget.' },
-            ].map(({ n, title, body }) => (
-              <div key={n} className="card-angled bg-dark-light border-2 border-gold p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-6 bg-gold flex items-center justify-center text-3xl font-bold text-black">{n}</div>
-                <h3 className="text-2xl font-display text-gold mb-4">{title}</h3>
-                <p className="text-gray-400">{body}</p>
+              {
+                Icon: ShieldCheck,
+                title: 'Quality Assured',
+                body: 'Every vehicle undergoes thorough inspection before listing. We only stock cars we are proud to put our name on.',
+              },
+              {
+                Icon: TrendingUp,
+                title: 'Flexible Financing',
+                body: 'We work with leading financial institutions to offer competitive terms tailored to your needs and budget.',
+              },
+              {
+                Icon: Users,
+                title: 'Personal Service',
+                body: 'Our team takes time to understand your needs, then matches you with the right vehicle at the right price.',
+              },
+            ].map(({ Icon, title, body }) => (
+              <div key={title} className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300">
+                <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mb-5">
+                  <Icon className="w-6 h-6 text-primary-light" />
+                </div>
+                <h3 className="font-display text-xl text-white mb-3">{title}</h3>
+                <p className="text-white/50 text-sm leading-relaxed">{body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* CTA */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="card-angled bg-black p-12 md:p-16 text-center">
-            <h2 className="text-4xl md:text-5xl font-display text-white mb-6">
-              Ready to Find Your <span className="text-gold">Perfect Vehicle?</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="bg-gray-50 rounded-3xl p-12 md:p-16 text-center">
+            <div className="section-tag justify-center">
+              <span className="w-5 h-px bg-primary inline-block" />
+              Visit Us
+            </div>
+            <h2 className="font-display text-4xl md:text-5xl text-support mb-4">
+              Ready to Find Your <span className="text-primary">Perfect Vehicle?</span>
             </h2>
-            <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-              Visit our showroom in Pretoria or contact us today to schedule a test drive.
+            <p className="text-muted text-lg mb-10 max-w-2xl mx-auto">
+              Visit our showroom or contact us today to schedule a test drive. No pressure, just honest service.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/vehicles">
-                <button className="btn-filled btn-filled-gold text-lg">Browse Vehicles</button>
+              <Link href="/vehicles" className="btn-primary">
+                Browse Vehicles
               </Link>
-              <Link href="/contact">
-                <button className="btn-hollow btn-hollow-white text-lg">Contact Us</button>
+              <Link href="/contact" className="btn-outline">
+                Contact Us
               </Link>
             </div>
           </div>

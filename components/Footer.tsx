@@ -1,72 +1,65 @@
 import Link from 'next/link'
-import Image from 'next/image'
 
 export default function Footer() {
   return (
-    <footer className="bg-black text-white">
-      <div className="max-w-7xl mx-auto px-6 py-16">
+    <footer className="bg-support text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-          {/* Company Info */}
+
+          {/* Brand */}
           <div className="col-span-1 md:col-span-2">
-            <Image
-              src="/logo.png"
-              alt="IC Cars Logo"
-              width={150}
-              height={75}
-              className="object-contain mb-6"
-            />
-            <p className="text-gray-400 mb-4 max-w-md">
-              Your trusted car dealership in Pretoria. We offer a wide selection of quality vehicles 
-              with financing options available.
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                <span className="text-white font-display text-xl font-bold">M</span>
+              </div>
+              <div>
+                <span className="font-display text-2xl text-white leading-none">Mtsinso</span>
+                <span className="block text-xs text-white/40 uppercase tracking-widest mt-0.5">Motors</span>
+              </div>
+            </div>
+            <p className="text-white/50 mb-6 max-w-sm text-sm leading-relaxed">
+              Your trusted vehicle dealership. We offer a carefully selected range of quality vehicles with financing options to suit every budget.
             </p>
-            <div className="space-y-2 text-gray-400">
-              <p>505 Rachel de Beer Street, Pretoria North, Pretoria, 0116</p>
+            <div className="space-y-1.5 text-white/50 text-sm">
+              <p>admin@mtsinso.co.za</p>
               <p>072 692 1127</p>
-              <p>admin@iccars.co.za</p>
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Links */}
           <div>
-            <h3 className="text-gold font-display text-xl mb-4">Quick Links</h3>
+            <h3 className="text-white font-semibold text-sm uppercase tracking-widest mb-5">Navigation</h3>
             <ul className="space-y-3">
-              <li>
-                <Link href="/" className="text-gray-400 hover:text-gold transition-colors duration-300">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link href="/vehicles" className="text-gray-400 hover:text-gold transition-colors duration-300">
-                  Browse Vehicles
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-gray-400 hover:text-gold transition-colors duration-300">
-                  Contact Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/auth/login" className="text-gray-400 hover:text-gold transition-colors duration-300">
-                  Staff Login
-                </Link>
-              </li>
+              {[
+                { href: '/',         label: 'Home' },
+                { href: '/vehicles', label: 'Browse Vehicles' },
+                { href: '/about',    label: 'About Us' },
+                { href: '/contact',  label: 'Contact' },
+                { href: '/auth/login', label: 'Staff Login' },
+              ].map(({ href, label }) => (
+                <li key={href}>
+                  <Link href={href} className="text-white/50 hover:text-white transition-colors text-sm">
+                    {label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Services */}
           <div>
-            <h3 className="text-gold font-display text-xl mb-4">Services</h3>
-            <ul className="space-y-3 text-gray-400">
-              <li>Vehicle Sales</li>
-              <li>Finance Options</li>
-              <li>Trade-Ins</li>
-              <li>Quality Inspection</li>
+            <h3 className="text-white font-semibold text-sm uppercase tracking-widest mb-5">Services</h3>
+            <ul className="space-y-3 text-white/50 text-sm">
+              {['Vehicle Sales', 'Finance Options', 'Trade-Ins', 'Quality Inspection', 'Test Drives'].map(s => (
+                <li key={s}>{s}</li>
+              ))}
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-dark-light mt-12 pt-8 text-center text-gray-500">
-          <p>&copy; {new Date().getFullYear()} IC Cars. All rights reserved.</p>
+        <div className="border-t border-white/10 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-white/30 text-sm">&copy; {new Date().getFullYear()} Mtsinso Car Sales. All rights reserved.</p>
+          <p className="text-white/20 text-xs">Quality vehicles. Honest service.</p>
         </div>
       </div>
     </footer>

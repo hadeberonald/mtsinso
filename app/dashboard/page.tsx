@@ -57,29 +57,26 @@ const PA_STATUS: Record<string, { label: string; bg: string; text: string; Icon:
   pending:  { label: 'Pending',        bg: 'bg-gray-100',  text: 'text-gray-600',  Icon: Clock },
 }
 
-// ─── WhatsApp message templates per status ────────────────────────────────────
+// ─── WhatsApp helpers ─────────────────────────────────────────────────────────
 function buildWhatsAppMessage(status: string, app: FinanceApp): string {
   const name    = app.full_name
   const vehicle = app.vehicle_details || 'your selected vehicle'
-
   const messages: Record<string, string> = {
-    contacted: `Hi ${name}, this is IC Cars. We tried to reach you regarding your finance application for ${vehicle}. Please give us a call or reply here when you get a chance. 😊`,
-    in_review: `Hi ${name}, good news — your finance application for ${vehicle} is currently under review by our team. We'll be in touch within 1-2 business days with an update. IC Cars 🚗`,
-    documents_pending: `Hi ${name}, IC Cars here. To process your finance application for ${vehicle}, we still need the following documents:\n\n📄 SA ID (front)\n📄 Proof of residence (not older than 3 months)\n📄 Latest payslip\n📄 3 months bank statements\n\nPlease send them here or bring them to our offices. Thank you!`,
-    documents_received: `Hi ${name}, IC Cars here. We've received your documents for your finance application on ${vehicle}. Your file is now complete and we're preparing it for bank submission. We'll keep you updated! 👍`,
-    submitted_to_bank: `Hi ${name}, IC Cars here. Your finance application for ${vehicle} has been submitted to the bank for assessment. The bank typically takes 24-48 hours. We'll contact you as soon as we hear back! 🏦`,
-    approved: `Hi ${name}, GREAT NEWS from IC Cars! 🎉 Your finance application for ${vehicle} has been APPROVED! Our team will contact you shortly to finalise everything and get you behind the wheel. Congratulations! 🚗✨`,
-    declined: `Hi ${name}, IC Cars here. Unfortunately your finance application for ${vehicle} was not successful this time. Please don't be discouraged — there are options we can explore such as a larger deposit or a more affordable vehicle. Please contact us to discuss. We're here to help! 💪`,
-    withdrawn: `Hi ${name}, IC Cars here. We're confirming that your finance application has been closed. Should your circumstances change or you'd like to reapply in future, please don't hesitate to contact us. Thank you! 🙏`,
+    contacted:          `Hi ${name}, this is Mtsinso Car Sales. We tried to reach you regarding your finance application for ${vehicle}. Please give us a call or reply here when you get a chance.`,
+    in_review:          `Hi ${name}, good news — your finance application for ${vehicle} is currently under review by our team. We'll be in touch within 1-2 business days with an update. Mtsinso Car Sales`,
+    documents_pending:  `Hi ${name}, Mtsinso Car Sales here. To process your finance application for ${vehicle}, we still need the following documents:\n\n- SA ID (front)\n- Proof of residence (not older than 3 months)\n- Latest payslip\n- 3 months bank statements\n\nPlease send them here or bring them to our offices. Thank you!`,
+    documents_received: `Hi ${name}, Mtsinso Car Sales here. We've received your documents for your finance application on ${vehicle}. Your file is now complete and we're preparing it for bank submission. We'll keep you updated!`,
+    submitted_to_bank:  `Hi ${name}, Mtsinso Car Sales here. Your finance application for ${vehicle} has been submitted to the bank for assessment. The bank typically takes 24-48 hours. We'll contact you as soon as we hear back!`,
+    approved:           `Hi ${name}, GREAT NEWS from Mtsinso Car Sales! Your finance application for ${vehicle} has been APPROVED! Our team will contact you shortly to finalise everything and get you behind the wheel. Congratulations!`,
+    declined:           `Hi ${name}, Mtsinso Car Sales here. Unfortunately your finance application for ${vehicle} was not successful this time. Please don't be discouraged — there are options we can explore such as a larger deposit or a more affordable vehicle. Please contact us to discuss.`,
+    withdrawn:          `Hi ${name}, Mtsinso Car Sales here. We're confirming that your finance application has been closed. Should your circumstances change or you'd like to reapply in future, please don't hesitate to contact us. Thank you!`,
   }
-
-  return messages[status] || `Hi ${name}, IC Cars here. There's an update on your finance application. Please contact us for more information. Thank you!`
+  return messages[status] || `Hi ${name}, Mtsinso Car Sales here. There's an update on your finance application. Please contact us for more information. Thank you!`
 }
 
 function openWhatsApp(phone: string, message: string) {
   const number = phone.replace(/\D/g, '').replace(/^0/, '27')
-  const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`
-  window.open(url, '_blank')
+  window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank')
 }
 
 const WA_TRIGGER_STATUSES = new Set([
@@ -108,10 +105,7 @@ export default function DashboardPage() {
     setUser(user)
     const { data } = await supabase.from('users').select('role').eq('id', user.id).single()
     if (data) setUserRole(data.role)
-    const { count } = await supabase
-      .from('contact_submissions')
-      .select('*', { count: 'exact', head: true })
-      .eq('replied', false)
+    const { count } = await supabase.from('contact_submissions').select('*', { count: 'exact', head: true }).eq('replied', false)
     setUnreadMessages(count || 0)
     setLoading(false)
   }
@@ -119,8 +113,8 @@ export default function DashboardPage() {
   if (loading) return (
     <div className="pt-20 min-h-screen flex items-center justify-center bg-white">
       <div className="text-center">
-        <div className="inline-block w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin" />
-        <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        <div className="inline-block w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="mt-4 text-muted">Loading dashboard...</p>
       </div>
     </div>
   )
@@ -134,21 +128,25 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="pt-20 min-h-screen bg-white">
-      <div className="bg-black py-8">
+    <div className="pt-20 min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-support py-8">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-4xl md:text-5xl font-display text-white mb-1">Dashboard</h1>
             <p className="text-gray-400 text-sm">
               {user?.email}
-              {userRole && <span className="ml-2 px-2 py-0.5 bg-gold text-black text-xs font-bold uppercase">{userRole}</span>}
+              {userRole && (
+                <span className="ml-2 px-2.5 py-0.5 bg-primary text-white text-xs font-bold rounded-full uppercase">{userRole}</span>
+              )}
             </p>
           </div>
-          <BarChart3 className="w-10 h-10 text-gold/30" />
+          <BarChart3 className="w-10 h-10 text-primary/30" />
         </div>
       </div>
 
-      <div className="border-b-2 border-gray-100 bg-white sticky top-0 z-30 shadow-sm">
+      {/* Tab bar */}
+      <div className="border-b border-gray-200 bg-white sticky top-16 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-1 overflow-x-auto">
             {tabs.map(({ id, label, Icon, adminOnly, badge }) => {
@@ -156,8 +154,8 @@ export default function DashboardPage() {
               const active = activeTab === id
               return (
                 <button key={id} onClick={() => setActiveTab(id)}
-                  className={`relative flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap transition-all border-b-[3px] ${
-                    active ? 'text-gold border-gold' : 'text-gray-500 border-transparent hover:text-dark hover:border-gray-200'
+                  className={`relative flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap transition-all border-b-2 ${
+                    active ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-support hover:border-gray-200'
                   }`}
                 >
                   <Icon className="w-4 h-4" />{label}
@@ -197,12 +195,8 @@ function MessagesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) 
   useEffect(() => { fetchSubmissions() }, [])
 
   const fetchSubmissions = async () => {
-    const { data, error } = await supabase
-      .from('contact_submissions').select('*').order('created_at', { ascending: false })
-    if (!error && data) {
-      setSubmissions(data)
-      onBadgeChange(data.filter(s => !s.replied).length)
-    }
+    const { data, error } = await supabase.from('contact_submissions').select('*').order('created_at', { ascending: false })
+    if (!error && data) { setSubmissions(data); onBadgeChange(data.filter(s => !s.replied).length) }
     setLoading(false)
   }
 
@@ -237,26 +231,26 @@ function MessagesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) 
     <div>
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Total',   value: submissions.length,                    color: 'border-gray-200' },
+          { label: 'Total',   value: submissions.length,                         color: 'border-gray-200' },
           { label: 'Unread',  value: submissions.filter(s => !s.replied).length, color: 'border-red-300' },
           { label: 'Replied', value: submissions.filter(s => s.replied).length,  color: 'border-green-300' },
         ].map(s => (
-          <div key={s.label} className={`border-2 ${s.color} bg-white rounded-lg p-5`}>
-            <div className="text-3xl font-bold text-dark mb-1">{s.value}</div>
-            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{s.label}</div>
+          <div key={s.label} className={`border-2 ${s.color} bg-white rounded-2xl p-5`}>
+            <div className="text-3xl font-bold text-support mb-1">{s.value}</div>
+            <div className="text-xs text-muted font-medium uppercase tracking-wide">{s.label}</div>
           </div>
         ))}
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-52">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input className="input-field pl-9 py-2 text-sm w-full" placeholder="Search messages..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="flex rounded overflow-hidden border-2 border-dark-light">
+        <div className="flex rounded-xl overflow-hidden border border-gray-200">
           {(['all', 'unread', 'replied'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${filter === f ? 'bg-gold text-black' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${filter === f ? 'bg-primary text-white' : 'bg-white text-muted hover:bg-gray-50'}`}>
               {f}
             </button>
           ))}
@@ -266,24 +260,24 @@ function MessagesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) 
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <InboxIcon className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400">{submissions.length === 0 ? 'No messages yet.' : 'No messages match this filter.'}</p>
+          <p className="text-muted">{submissions.length === 0 ? 'No messages yet.' : 'No messages match this filter.'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-2">
             {filtered.map(sub => (
               <button key={sub.id} onClick={() => setSelected(sub)}
-                className={`w-full text-left p-4 border-2 transition-all card-angled ${
-                  selected?.id === sub.id ? 'border-gold bg-gold/5' : 'border-dark-light bg-white hover:border-gold/50'
+                className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                  selected?.id === sub.id ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white hover:border-primary/40'
                 }`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       {!sub.replied && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500" />}
-                      <span className="font-bold text-dark text-sm truncate">{sub.name}</span>
-                      {sub.replied && <span className="flex-shrink-0 text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">REPLIED</span>}
+                      <span className="font-bold text-support text-sm truncate">{sub.name}</span>
+                      {sub.replied && <span className="flex-shrink-0 text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">REPLIED</span>}
                     </div>
-                    <p className="text-xs text-gray-500 truncate mb-1">{sub.subject}</p>
+                    <p className="text-xs text-muted truncate mb-1">{sub.subject}</p>
                     <p className="text-xs text-gray-400 truncate">{sub.message}</p>
                   </div>
                   <span className="text-[10px] text-gray-400 flex-shrink-0 mt-0.5">
@@ -295,31 +289,31 @@ function MessagesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) 
           </div>
 
           {selected ? (
-            <div className="card-angled border-2 border-dark-light bg-white p-6 h-fit sticky top-24">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 h-fit sticky top-24">
               <div className="flex items-start justify-between mb-5 gap-3">
                 <div>
-                  <h3 className="text-lg font-display text-dark mb-0.5">{selected.name}</h3>
-                  <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                  <h3 className="text-lg font-display text-support mb-0.5">{selected.name}</h3>
+                  <div className="flex flex-wrap gap-3 text-xs text-muted">
                     <span>{selected.email}</span>
                     {selected.phone && <span>{selected.phone}</span>}
                   </div>
                 </div>
-                <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-dark p-1"><X className="w-4 h-4" /></button>
+                <button onClick={() => setSelected(null)} className="text-muted hover:text-support p-1"><X className="w-4 h-4" /></button>
               </div>
 
               <div className="mb-4">
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Subject</div>
-                <p className="text-sm font-semibold text-dark">{selected.subject}</p>
+                <div className="text-xs font-bold text-muted uppercase tracking-wide mb-1">Subject</div>
+                <p className="text-sm font-semibold text-support">{selected.subject}</p>
               </div>
 
               <div className="mb-5">
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Message</div>
-                <div className="bg-gray-50 border border-gray-100 rounded p-4">
+                <div className="text-xs font-bold text-muted uppercase tracking-wide mb-2">Message</div>
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
                   <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selected.message}</p>
                 </div>
               </div>
 
-              <div className="text-xs text-gray-400 mb-5">
+              <div className="text-xs text-muted mb-5">
                 Received {new Date(selected.created_at).toLocaleString('en-ZA')}
                 {selected.replied && selected.replied_at && (
                   <span> · Replied {new Date(selected.replied_at).toLocaleString('en-ZA')}</span>
@@ -328,32 +322,32 @@ function MessagesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) 
 
               <div className="flex flex-wrap gap-2">
                 <a
-                  href={`https://wa.me/${selected.phone?.replace(/\D/g, '').replace(/^0/, '27')}?text=${encodeURIComponent(`Hi ${selected.name}, thanks for contacting IC Cars regarding "${selected.subject}". `)}`}
+                  href={`https://wa.me/${selected.phone?.replace(/\D/g, '').replace(/^0/, '27')}?text=${encodeURIComponent(`Hi ${selected.name}, thanks for contacting Mtsinso Car Sales regarding "${selected.subject}". `)}`}
                   target="_blank" rel="noopener noreferrer"
-                  className={`flex items-center gap-2 btn-filled btn-filled-gold text-sm py-2 ${!selected.phone ? 'opacity-40 pointer-events-none' : ''}`}
+                  className={`flex items-center gap-2 btn-primary text-sm py-2 ${!selected.phone ? 'opacity-40 pointer-events-none' : ''}`}
                 >
                   <Phone className="w-4 h-4" /> Reply on WhatsApp
                 </a>
                 <a
                   href={`mailto:${selected.email}?subject=Re: ${encodeURIComponent(selected.subject)}&body=${encodeURIComponent(`Hi ${selected.name},\n\n`)}`}
-                  className="flex items-center gap-2 btn-hollow btn-hollow-gold text-sm py-2"
+                  className="flex items-center gap-2 btn-outline text-sm py-2"
                 >
                   <Mail className="w-4 h-4" /> Open in Email
                 </a>
                 {!selected.replied && (
                   <button onClick={() => markReplied(selected.id)}
-                    className="flex items-center gap-2 text-xs font-semibold text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 transition-colors">
+                    className="flex items-center gap-2 text-xs font-semibold text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-xl transition-colors">
                     <Check className="w-3.5 h-3.5" /> Mark Replied
                   </button>
                 )}
                 <button onClick={() => handleDelete(selected.id)}
-                  className="flex items-center gap-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-2 transition-colors">
+                  className="flex items-center gap-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition-colors">
                   <Trash2 className="w-3.5 h-3.5" /> Delete
                 </button>
               </div>
             </div>
           ) : (
-            <div className="hidden lg:flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg p-12 text-gray-400 text-sm">
+            <div className="hidden lg:flex items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-12 text-muted text-sm">
               Select a message to view
             </div>
           )}
@@ -424,16 +418,16 @@ function FinanceTab() {
           { label: 'Strong Profiles',     value: stats.preApproved, color: 'border-green-300' },
           { label: 'In Review',           value: stats.inReview,    color: 'border-amber-300' },
         ].map(s => (
-          <div key={s.label} className={`border-2 ${s.color} bg-white rounded-lg p-5`}>
-            <div className="text-3xl font-bold text-dark mb-1">{s.value}</div>
-            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{s.label}</div>
+          <div key={s.label} className={`border-2 ${s.color} bg-white rounded-2xl p-5`}>
+            <div className="text-3xl font-bold text-support mb-1">{s.value}</div>
+            <div className="text-xs text-muted font-medium uppercase tracking-wide">{s.label}</div>
           </div>
         ))}
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-52">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input className="input-field pl-9 py-2 text-sm w-full" placeholder="Search name, email, phone..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="relative">
@@ -441,29 +435,29 @@ function FinanceTab() {
             <option value="all">All Statuses</option>
             {Object.entries(APP_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
         </div>
         <div className="relative">
           <select className="input-field py-2 pr-8 text-sm appearance-none" value={filterPA} onChange={e => setFilterPA(e.target.value)}>
             <option value="all">All Pre-Approvals</option>
             {Object.entries(PA_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-muted">
           {apps.length === 0 ? 'No finance applications yet.' : 'No applications match these filters.'}
         </div>
       ) : (
-        <div className="card-angled border-2 border-dark-light overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {['Applicant', 'Vehicle / Loan', 'Pre-Approval', 'Affordability', 'Status', 'Date', ''].map(h => (
-                    <th key={h} className="px-5 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">{h}</th>
+                    <th key={h} className="px-5 py-4 text-left text-xs font-bold text-muted uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -475,17 +469,17 @@ function FinanceTab() {
                   return (
                     <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-4">
-                        <div className="font-semibold text-dark text-sm">{app.full_name}</div>
-                        <div className="text-xs text-gray-500">{app.email}</div>
+                        <div className="font-semibold text-support text-sm">{app.full_name}</div>
+                        <div className="text-xs text-muted">{app.email}</div>
                         <div className="text-xs text-gray-400">{app.phone}</div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="text-xs text-gray-500 mb-0.5">{app.vehicle_details || 'No specific vehicle'}</div>
-                        <div className="font-semibold text-dark text-sm">R {(app.loan_amount_requested || 0).toLocaleString('en-ZA')}</div>
+                        <div className="text-xs text-muted mb-0.5">{app.vehicle_details || 'No specific vehicle'}</div>
+                        <div className="font-semibold text-support text-sm">R {(app.loan_amount_requested || 0).toLocaleString('en-ZA')}</div>
                         <div className="text-xs text-gray-400">{app.preferred_term_months}mo · dep R {(app.deposit_amount || 0).toLocaleString('en-ZA')}</div>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-sm ${pa.bg} ${pa.text}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full ${pa.bg} ${pa.text}`}>
                           <PaI className="w-3 h-3" />{pa.label}
                         </span>
                       </td>
@@ -502,15 +496,15 @@ function FinanceTab() {
                         ) : <span className="text-xs text-gray-300">—</span>}
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-sm ${st.bg} ${st.text}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full ${st.bg} ${st.text}`}>
                           <StI className="w-3 h-3" />{st.label}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-xs text-gray-400 whitespace-nowrap">
+                      <td className="px-5 py-4 text-xs text-muted whitespace-nowrap">
                         {new Date(app.created_at).toLocaleDateString('en-ZA')}
                       </td>
                       <td className="px-5 py-4">
-                        <button onClick={() => setSelected(app)} className="p-2 text-gold hover:bg-gold/10 rounded transition-colors">
+                        <button onClick={() => setSelected(app)} className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-colors">
                           <Eye className="w-4 h-4" />
                         </button>
                       </td>
@@ -524,12 +518,7 @@ function FinanceTab() {
       )}
 
       {selected && (
-        <FinanceDetailModal
-          app={selected}
-          onClose={() => setSelected(null)}
-          onStatusChange={updateStatus}
-          onSaveNotes={saveNotes}
-        />
+        <FinanceDetailModal app={selected} onClose={() => setSelected(null)} onStatusChange={updateStatus} onSaveNotes={saveNotes} />
       )}
     </div>
   )
@@ -545,32 +534,28 @@ function WhatsAppConfirmModal({ app, newStatus, onConfirm, onSkip, onCancel }: {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-      <div className="bg-white border-2 border-gold max-w-lg w-full card-angled">
+      <div className="bg-white rounded-2xl border border-gray-200 max-w-lg w-full shadow-xl">
         <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-display text-dark mb-1">Send WhatsApp Update?</h3>
-            <p className="text-sm text-gray-500">
-              Status → <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 text-xs rounded ${st.bg} ${st.text}`}><StI className="w-3 h-3" />{st.label}</span>
+            <h3 className="text-lg font-display text-support mb-1">Send WhatsApp Update?</h3>
+            <p className="text-sm text-muted">
+              Status → <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 text-xs rounded-full ${st.bg} ${st.text}`}><StI className="w-3 h-3" />{st.label}</span>
             </p>
           </div>
-          <button onClick={onCancel} className="text-gray-400 hover:text-dark p-1"><X className="w-5 h-5" /></button>
+          <button onClick={onCancel} className="text-muted hover:text-support p-1"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6">
           <p className="text-sm text-gray-600 mb-1">WhatsApp message to <strong>{app.full_name}</strong></p>
-          <p className="text-xs text-gray-400 mb-3">{app.whatsapp || app.phone}</p>
-          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Message (editable)</label>
-          <textarea
-            className="input-field resize-none text-sm w-full" rows={6}
-            value={message} onChange={e => setMessage(e.target.value)}
-          />
+          <p className="text-xs text-muted mb-3">{app.whatsapp || app.phone}</p>
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">Message (editable)</label>
+          <textarea className="input-field resize-none text-sm w-full" rows={6} value={message} onChange={e => setMessage(e.target.value)} />
           <div className="flex gap-3 mt-5">
-            <button onClick={() => onConfirm(message)}
-              className="flex-1 btn-filled btn-filled-gold flex items-center justify-center gap-2 text-sm">
+            <button onClick={() => onConfirm(message)} className="flex-1 btn-primary flex items-center justify-center gap-2 text-sm">
               <Phone className="w-4 h-4" /> Open WhatsApp + Update
             </button>
-            <button onClick={onSkip} className="btn-hollow btn-hollow-gold text-sm px-4">Update Only</button>
+            <button onClick={onSkip} className="btn-outline text-sm px-4">Update Only</button>
           </div>
-          <p className="text-xs text-gray-400 text-center mt-2">"Update Only" saves the status without opening WhatsApp.</p>
+          <p className="text-xs text-muted text-center mt-2">"Update Only" saves the status without opening WhatsApp.</p>
         </div>
       </div>
     </div>
@@ -600,15 +585,10 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
     setCurrentStatus(status)
     onStatusChange(app.id, status)
     setPendingStatus(null)
-    if (sendWA) {
-      const phone = app.whatsapp || app.phone
-      if (phone) openWhatsApp(phone, message)
-    }
+    if (sendWA) { const phone = app.whatsapp || app.phone; if (phone) openWhatsApp(phone, message) }
   }
 
-  const handleSaveNotes = async () => {
-    setSaving(true); await onSaveNotes(app.id, notes); setSaving(false)
-  }
+  const handleSaveNotes = async () => { setSaving(true); await onSaveNotes(app.id, notes); setSaving(false) }
 
   return (
     <>
@@ -621,34 +601,34 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
         />
       )}
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-white border-2 border-gold max-w-4xl w-full max-h-[92vh] flex flex-col card-angled">
+        <div className="bg-white rounded-2xl border border-gray-200 max-w-4xl w-full max-h-[92vh] flex flex-col shadow-xl">
           <div className="flex items-start justify-between p-6 border-b border-gray-100 flex-shrink-0 gap-4">
             <div>
-              <h2 className="text-2xl font-display text-dark">{app.full_name}</h2>
+              <h2 className="text-2xl font-display text-support">{app.full_name}</h2>
               <div className="flex flex-wrap items-center gap-3 mt-1">
-                <span className="text-sm text-gray-500">{app.email}</span>
-                <span className="text-sm text-gray-500">{app.phone}</span>
+                <span className="text-sm text-muted">{app.email}</span>
+                <span className="text-sm text-muted">{app.phone}</span>
                 {app.whatsapp && (
                   <a href={`https://wa.me/${app.whatsapp.replace(/\D/g, '').replace(/^0/, '27')}`} target="_blank" rel="noopener noreferrer"
-                    className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 hover:bg-green-200 transition-colors">WhatsApp ↗</a>
+                    className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-0.5 rounded-full hover:bg-green-200 transition-colors">WhatsApp ↗</a>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold ${pa.bg} ${pa.text}`}><PaI className="w-3.5 h-3.5" />{pa.label}</span>
-              <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-dark"><X className="w-5 h-5" /></button>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full ${pa.bg} ${pa.text}`}><PaI className="w-3.5 h-3.5" />{pa.label}</span>
+              <button onClick={onClose} className="p-1.5 text-muted hover:text-support"><X className="w-5 h-5" /></button>
             </div>
           </div>
 
           <div className="overflow-y-auto flex-1 p-6 space-y-6">
             {/* Pre-approval banner */}
-            <div className={`rounded-lg p-5 border ${pa.bg}`}>
+            <div className={`rounded-2xl p-5 border ${pa.bg}`}>
               <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
                 <h3 className={`font-bold text-base ${pa.text}`}>Pre-Approval Assessment</h3>
                 {app.max_loan_estimate && app.loan_amount_requested ? (
                   app.loan_amount_requested <= app.max_loan_estimate
-                    ? <span className="flex items-center gap-1.5 bg-green-600 text-white text-xs font-bold px-2.5 py-1 rounded-sm"><CheckCircle className="w-3.5 h-3.5" />Within affordable range</span>
-                    : <span className="flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-sm"><AlertCircle className="w-3.5 h-3.5" />Vehicle too expensive</span>
+                    ? <span className="flex items-center gap-1.5 bg-green-600 text-white text-xs font-bold px-2.5 py-1 rounded-full"><CheckCircle className="w-3.5 h-3.5" />Within affordable range</span>
+                    : <span className="flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full"><AlertCircle className="w-3.5 h-3.5" />Vehicle too expensive</span>
                 ) : null}
               </div>
               <p className="text-sm text-gray-700 mb-3 leading-relaxed">
@@ -662,14 +642,14 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
               {(app.estimated_monthly_payment || app.max_loan_estimate) ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                   {[
-                    { label: 'Est. Monthly', val: `R ${(app.estimated_monthly_payment || 0).toLocaleString('en-ZA')}`,  color: 'text-gold' },
+                    { label: 'Est. Monthly', val: `R ${(app.estimated_monthly_payment || 0).toLocaleString('en-ZA')}`,  color: 'text-primary' },
                     { label: 'Stress Test',  val: `R ${(app.estimated_monthly_stressed || 0).toLocaleString('en-ZA')}`, color: 'text-amber-600' },
-                    { label: 'Max Loan',     val: `R ${(app.max_loan_estimate || 0).toLocaleString('en-ZA')}`,          color: 'text-gold' },
+                    { label: 'Max Loan',     val: `R ${(app.max_loan_estimate || 0).toLocaleString('en-ZA')}`,          color: 'text-primary' },
                     { label: 'DTI Ratio',    val: `${((app.dti_ratio || 0) * 100).toFixed(1)}%`,
                       color: (app.dti_ratio || 0) > 0.4 ? 'text-red-600' : (app.dti_ratio || 0) > 0.3 ? 'text-amber-600' : 'text-green-600' },
                   ].map(m => (
-                    <div key={m.label} className="bg-white rounded p-3 text-center border border-gray-100">
-                      <div className="text-xs text-gray-500 mb-0.5">{m.label}</div>
+                    <div key={m.label} className="bg-white rounded-xl p-3 text-center border border-gray-100">
+                      <div className="text-xs text-muted mb-0.5">{m.label}</div>
                       <div className={`text-base font-bold ${m.color}`}>{m.val}</div>
                     </div>
                   ))}
@@ -696,7 +676,7 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
                 ['Net Monthly',   `R ${(app.net_monthly_income  || 0).toLocaleString('en-ZA')}`],
               ]} />
               <div>
-                <h4 className="text-sm font-bold text-dark uppercase tracking-wide mb-3 pb-2 border-b border-gray-100">Credit Flags</h4>
+                <h4 className="text-sm font-bold text-support uppercase tracking-wide mb-3 pb-2 border-b border-gray-100">Credit Flags</h4>
                 <div className="space-y-2">
                   {[
                     { label: 'Previously Blacklisted', val: app.decl_has_been_blacklisted },
@@ -706,8 +686,8 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
                     <div key={f.label} className="flex items-center justify-between py-1">
                       <span className="text-sm text-gray-600">{f.label}</span>
                       {f.val
-                        ? <span className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-sm"><AlertCircle className="w-3 h-3" />YES</span>
-                        : <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-sm">No</span>}
+                        ? <span className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full"><AlertCircle className="w-3 h-3" />YES</span>
+                        : <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">No</span>}
                     </div>
                   ))}
                 </div>
@@ -717,18 +697,18 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
             {/* Status changer */}
             <div className="border-t border-gray-100 pt-6">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                <h4 className="text-sm font-bold text-dark uppercase tracking-wide">Update Status</h4>
-                <span className="text-xs text-gray-400 flex items-center gap-1"><Phone className="w-3 h-3" />Green border = opens WhatsApp</span>
+                <h4 className="text-sm font-bold text-support uppercase tracking-wide">Update Status</h4>
+                <span className="text-xs text-muted flex items-center gap-1"><Phone className="w-3 h-3" />Green border = opens WhatsApp</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(APP_STATUS).map(([k, v]) => {
                   const Ic = v.Icon; const active = currentStatus === k; const wa = WA_TRIGGER_STATUSES.has(k)
                   return (
                     <button key={k} onClick={() => handleStatusClick(k)}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold border-2 transition-all rounded-sm ${
-                        active ? 'bg-gold text-black border-gold'
-                        : wa    ? 'border-green-400 text-gray-600 hover:border-green-600 hover:text-dark bg-white'
-                        :         'border-gray-200 text-gray-500 hover:border-gray-400 bg-white'
+                      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-full border-2 transition-all ${
+                        active ? 'bg-primary text-white border-primary'
+                        : wa    ? 'border-green-400 text-gray-600 hover:border-green-600 hover:text-support bg-white'
+                        :         'border-gray-200 text-muted hover:border-gray-400 bg-white'
                       }`}>
                       <Ic className="w-3.5 h-3.5" />{v.label}
                       {wa && !active && <Phone className="w-2.5 h-2.5 text-green-500 ml-0.5" />}
@@ -739,43 +719,34 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
               </div>
             </div>
 
-            {/* Documents checklist + downloads */}
+            {/* Documents */}
             <div className="border-t border-gray-100 pt-6">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-dark uppercase tracking-wide">Documents</h4>
+                <h4 className="text-sm font-bold text-support uppercase tracking-wide">Documents</h4>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={docsComplete}
                     onChange={async e => {
                       setDocsComplete(e.target.checked)
                       await supabase.from('finance_applications').update({ documents_complete: e.target.checked }).eq('id', app.id)
-                    }} className="w-4 h-4 text-gold" />
-                  <span className="text-xs font-semibold text-dark">Mark All Complete</span>
+                    }} className="w-4 h-4 accent-primary" />
+                  <span className="text-xs font-semibold text-support">Mark All Complete</span>
                 </label>
               </div>
-
               <div className="space-y-2">
-                {/* SA ID */}
                 <DocRow label="SA ID" url={app.doc_id_front} />
-
-                {/* Proof of Residence — can be multiple */}
                 {(app.doc_proof_of_residence && app.doc_proof_of_residence.length > 0)
                   ? app.doc_proof_of_residence.map((url, i) => (
                       <DocRow key={i} label={`Proof of Residence${app.doc_proof_of_residence!.length > 1 ? ` (${i + 1})` : ''}`} url={url} />
                     ))
                   : <DocRow label="Proof of Residence" url={null} />
                 }
-
-                {/* Payslip */}
                 <DocRow label="Payslip" url={app.doc_payslip_month1} />
-
-                {/* Bank statements */}
                 <DocRow label="Bank Statement (Month 1)" url={app.doc_bank_statement_month1} />
                 <DocRow label="Bank Statement (Month 2)" url={app.doc_bank_statement_month2} />
                 <DocRow label="Bank Statement (Month 3)" url={app.doc_bank_statement_month3} />
               </div>
-
               {app.submitted_to_bank_at && (
-                <p className="text-xs text-gray-400 mt-3">
+                <p className="text-xs text-muted mt-3">
                   Submitted: {new Date(app.submitted_to_bank_at).toLocaleString('en-ZA')}
                   {app.bank_reference && ` · Ref: ${app.bank_reference}`}
                 </p>
@@ -784,23 +755,20 @@ function FinanceDetailModal({ app, onClose, onStatusChange, onSaveNotes }: {
 
             {/* Admin notes */}
             <div>
-              <h4 className="text-sm font-bold text-dark uppercase tracking-wide mb-1">Admin Notes</h4>
-              <p className="text-xs text-gray-400 mb-2">Internal only — never shown to the customer.</p>
-              <textarea rows={4} className="input-field resize-none text-sm w-full" value={notes}
-                onChange={e => setNotes(e.target.value)} placeholder="Internal notes about this application..." />
-              <button onClick={handleSaveNotes} disabled={saving}
-                className="btn-filled btn-filled-gold mt-2 text-sm py-2 flex items-center gap-2 disabled:opacity-50">
+              <h4 className="text-sm font-bold text-support uppercase tracking-wide mb-1">Admin Notes</h4>
+              <p className="text-xs text-muted mb-2">Internal only — never shown to the customer.</p>
+              <textarea rows={4} className="input-field resize-none text-sm w-full" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Internal notes about this application..." />
+              <button onClick={handleSaveNotes} disabled={saving} className="btn-primary mt-2 text-sm py-2 flex items-center gap-2 disabled:opacity-50">
                 {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving...</> : <><Check className="w-3.5 h-3.5" />Save Notes</>}
               </button>
             </div>
 
             {/* Contact shortcuts */}
             <div className="flex flex-wrap gap-3 border-t border-gray-100 pt-4">
-              <a href={`tel:${app.phone}`} className="btn-hollow btn-hollow-gold text-sm flex items-center gap-2 py-2"><Phone className="w-4 h-4" />Call</a>
-              <a href={`mailto:${app.email}?subject=Your Finance Application – IC Cars`} className="btn-hollow btn-hollow-gold text-sm flex items-center gap-2 py-2"><Mail className="w-4 h-4" />Email</a>
-              <a href={`https://wa.me/${(app.whatsapp || app.phone).replace(/\D/g, '').replace(/^0/, '27')}`}
-                target="_blank" rel="noopener noreferrer"
-                className="btn-hollow btn-hollow-gold text-sm flex items-center gap-2 py-2"><Phone className="w-4 h-4" />WhatsApp</a>
+              <a href={`tel:${app.phone}`} className="btn-outline text-sm flex items-center gap-2 py-2"><Phone className="w-4 h-4" />Call</a>
+              <a href={`mailto:${app.email}?subject=Your Finance Application – Mtsinso Car Sales`} className="btn-outline text-sm flex items-center gap-2 py-2"><Mail className="w-4 h-4" />Email</a>
+              <a href={`https://wa.me/${(app.whatsapp || app.phone).replace(/\D/g, '').replace(/^0/, '27')}`} target="_blank" rel="noopener noreferrer"
+                className="btn-outline text-sm flex items-center gap-2 py-2"><Phone className="w-4 h-4" />WhatsApp</a>
             </div>
           </div>
         </div>
@@ -837,29 +805,29 @@ function VehiclesTab({ userRole, userId }: { userRole: string | null; userId: st
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-display text-dark">Manage Vehicles</h2>
-        <button onClick={() => { setEditing(null); setShowModal(true) }} className="btn-filled btn-filled-gold flex items-center gap-2">
+        <h2 className="text-2xl font-display text-support">Manage Vehicles</h2>
+        <button onClick={() => { setEditing(null); setShowModal(true) }} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />Add Vehicle
         </button>
       </div>
 
       {vehicles.length === 0 ? <EmptyState message="No vehicles yet. Add your first listing!" /> : (
-        <div className="card-angled border-2 border-dark-light overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>{['Vehicle', 'Year', 'Price', 'Status', 'Images', 'Actions'].map(h => (
-                  <th key={h} className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">{h}</th>
+                  <th key={h} className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wide">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {vehicles.map(v => (
                   <tr key={v.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-dark">{v.make} {v.model}</td>
-                    <td className="px-6 py-4 text-gray-600 text-sm">{v.year}</td>
-                    <td className="px-6 py-4 text-gray-600 text-sm">R {new Intl.NumberFormat('en-ZA').format(v.price)}</td>
+                    <td className="px-6 py-4 font-semibold text-support">{v.make} {v.model}</td>
+                    <td className="px-6 py-4 text-muted text-sm">{v.year}</td>
+                    <td className="px-6 py-4 text-muted text-sm">R {new Intl.NumberFormat('en-ZA').format(v.price)}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 text-xs font-bold uppercase rounded-sm ${
+                      <span className={`px-2.5 py-1 text-xs font-bold uppercase rounded-full ${
                         v.status === 'available' ? 'bg-green-100 text-green-800' :
                         v.status === 'sold' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
                         {v.status}
@@ -869,18 +837,18 @@ function VehiclesTab({ userRole, userId }: { userRole: string | null; userId: st
                       <div className="flex gap-1 items-center">
                         {v.images?.length > 0 ? (
                           <>
-                            <img src={v.images[0]} alt="" className="w-10 h-10 object-cover rounded border border-gray-200" />
-                            {v.images.length > 1 && <span className="text-xs font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">+{v.images.length - 1}</span>}
+                            <img src={v.images[0]} alt="" className="w-10 h-10 object-cover rounded-lg border border-gray-200" />
+                            {v.images.length > 1 && <span className="text-xs font-bold text-muted bg-gray-100 px-1.5 py-0.5 rounded-full">+{v.images.length - 1}</span>}
                           </>
                         ) : (
-                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center"><ImageIcon className="w-4 h-4 text-gray-300" /></div>
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center"><ImageIcon className="w-4 h-4 text-gray-300" /></div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
-                        <button onClick={() => { setEditing(v); setShowModal(true) }} className="p-1.5 text-gold hover:bg-gold/10 rounded transition-colors"><Edit className="w-4 h-4" /></button>
-                        <button onClick={() => handleDelete(v.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={() => { setEditing(v); setShowModal(true) }} className="p-1.5 text-primary hover:bg-primary/10 rounded-xl transition-colors"><Edit className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(v.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -927,28 +895,28 @@ function UsersTab() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-display text-dark">Manage Users</h2>
-        <button onClick={() => setShowModal(true)} className="btn-filled btn-filled-gold flex items-center gap-2"><Plus className="w-4 h-4" />Add User</button>
+        <h2 className="text-2xl font-display text-support">Manage Users</h2>
+        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2"><Plus className="w-4 h-4" />Add User</button>
       </div>
       {users.length === 0 ? <EmptyState message="No users found." /> : (
-        <div className="card-angled border-2 border-dark-light overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>{['Name', 'Email', 'Role', 'Actions'].map(h => (
-                  <th key={h} className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">{h}</th>
+                  <th key={h} className="px-6 py-4 text-left text-xs font-bold text-muted uppercase tracking-wide">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-dark">{u.full_name}</td>
-                    <td className="px-6 py-4 text-gray-600 text-sm">{u.email}</td>
+                    <td className="px-6 py-4 font-semibold text-support">{u.full_name}</td>
+                    <td className="px-6 py-4 text-muted text-sm">{u.email}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 text-xs font-bold uppercase rounded-sm ${u.role === 'admin' ? 'bg-gold text-black' : 'bg-gray-100 text-gray-700'}`}>{u.role}</span>
+                      <span className={`px-2.5 py-1 text-xs font-bold uppercase rounded-full ${u.role === 'admin' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{u.role}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <button onClick={() => handleDelete(u.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => handleDelete(u.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}
@@ -995,28 +963,28 @@ function HeroTab() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-display text-dark">Manage Hero Carousel</h2>
-        <button onClick={() => { setEditing(null); setShowModal(true) }} className="btn-filled btn-filled-gold flex items-center gap-2"><Plus className="w-4 h-4" />Add Slide</button>
+        <h2 className="text-2xl font-display text-support">Manage Hero Carousel</h2>
+        <button onClick={() => { setEditing(null); setShowModal(true) }} className="btn-primary flex items-center gap-2"><Plus className="w-4 h-4" />Add Slide</button>
       </div>
       {slides.length === 0 ? <EmptyState message="No slides yet. Add your first hero slide!" /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {slides.map(slide => (
-            <div key={slide.id} className="card-angled border-2 border-dark-light overflow-hidden">
+            <div key={slide.id} className="rounded-2xl border border-gray-200 overflow-hidden bg-white">
               <div className="relative h-44 bg-gray-100">
                 <img src={slide.image_url} alt={slide.title} className="w-full h-full object-cover" />
-                {slide.active && <div className="absolute top-3 right-3 bg-green-500 text-white px-2 py-0.5 text-xs font-bold">ACTIVE</div>}
-                <div className="absolute bottom-3 left-3 bg-black/70 text-white px-2 py-0.5 text-xs font-bold">#{slide.order_index}</div>
+                {slide.active && <div className="absolute top-3 right-3 bg-green-500 text-white px-2.5 py-0.5 text-xs font-bold rounded-full">ACTIVE</div>}
+                <div className="absolute bottom-3 left-3 bg-black/70 text-white px-2 py-0.5 text-xs font-bold rounded-full">#{slide.order_index}</div>
               </div>
               <div className="p-5">
-                <h3 className="text-lg font-display text-dark mb-1">{slide.title}</h3>
-                <p className="text-sm text-gray-500 mb-4 line-clamp-2">{slide.subtitle}</p>
+                <h3 className="text-lg font-display text-support mb-1">{slide.title}</h3>
+                <p className="text-sm text-muted mb-4 line-clamp-2">{slide.subtitle}</p>
                 <div className="flex gap-2 flex-wrap">
                   <button onClick={() => toggleActive(slide.id, slide.active)}
-                    className={`px-3 py-1.5 text-xs font-bold transition-colors ${slide.active ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gold text-black hover:bg-gold/80'}`}>
+                    className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-colors ${slide.active ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-primary text-white hover:bg-primary/80'}`}>
                     {slide.active ? 'Deactivate' : 'Activate'}
                   </button>
-                  <button onClick={() => { setEditing(slide); setShowModal(true) }} className="p-1.5 text-gold hover:bg-gold/10 rounded transition-colors"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(slide.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => { setEditing(slide); setShowModal(true) }} className="p-1.5 text-primary hover:bg-primary/10 rounded-xl transition-colors"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(slide.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             </div>
@@ -1115,35 +1083,36 @@ function VehicleModal({ vehicle, userId, onClose, onSuccess }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="card-angled bg-white border-2 border-gold max-w-6xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl border border-gray-200 max-w-6xl w-full max-h-[90vh] flex flex-col shadow-xl">
         <div className="p-6 border-b border-gray-100 flex-shrink-0 flex justify-between items-center">
-          <h2 className="text-2xl font-display text-dark">{vehicle ? 'Edit Vehicle' : 'Add New Vehicle'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-dark"><X className="w-5 h-5" /></button>
+          <h2 className="text-2xl font-display text-support">{vehicle ? 'Edit Vehicle' : 'Add New Vehicle'}</h2>
+          <button onClick={onClose} className="text-muted hover:text-support"><X className="w-5 h-5" /></button>
         </div>
         <div className="overflow-y-auto flex-1 px-6 py-6">
           <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-lg font-bold text-dark mb-4">Vehicle Images *</h3>
+            {/* Image upload */}
+            <div className="bg-gray-50 p-6 rounded-2xl">
+              <h3 className="text-lg font-bold text-support mb-4">Vehicle Images *</h3>
               {uploadedImages.length > 0 && (
                 <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-4">
                   {uploadedImages.map((url, i) => (
                     <div key={i} className="relative group">
-                      <img src={url} alt="" className="w-full h-24 object-cover rounded border-2 border-gray-200" />
+                      <img src={url} alt="" className="w-full h-24 object-cover rounded-xl border border-gray-200" />
                       <button type="button" onClick={() => setUploadedImages(p => p.filter((_, j) => j !== i))}
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <X className="w-3 h-3" />
                       </button>
-                      {i === 0 && <div className="absolute bottom-1 left-1 bg-gold text-black px-1 text-xs font-bold">MAIN</div>}
+                      {i === 0 && <div className="absolute bottom-1 left-1 bg-primary text-white px-1.5 text-xs font-bold rounded-full">MAIN</div>}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gold transition-colors">
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-primary transition-colors">
                 <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" id="img-upload" disabled={uploading} />
                 <label htmlFor="img-upload" className="cursor-pointer">
                   {uploading
-                    ? <div className="flex flex-col items-center"><Loader2 className="w-10 h-10 text-gold animate-spin mb-2" /><span className="text-sm text-gray-500">Uploading...</span></div>
-                    : <><Upload className="w-10 h-10 mx-auto text-gray-300 mb-2" /><div className="text-sm font-medium text-gray-600">Click to upload images</div><div className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP · First image = main photo</div></>}
+                    ? <div className="flex flex-col items-center"><Loader2 className="w-10 h-10 text-primary animate-spin mb-2" /><span className="text-sm text-muted">Uploading...</span></div>
+                    : <><Upload className="w-10 h-10 mx-auto text-gray-300 mb-2" /><div className="text-sm font-medium text-gray-600">Click to upload images</div><div className="text-xs text-muted mt-1">PNG, JPG, WEBP · First image = main photo</div></>}
                 </label>
               </div>
             </div>
@@ -1164,7 +1133,7 @@ function VehicleModal({ vehicle, userId, onClose, onSuccess }: any) {
                 <Field label="Price (ZAR) *"><input type="number" value={fd.price} onChange={e => sf('price', e.target.value)} required className="input-field" /></Field>
                 <Field label="Mileage (km) *"><input type="number" value={fd.mileage} onChange={e => sf('mileage', e.target.value)} required className="input-field" /></Field>
                 <div className="md:col-span-2">
-                  <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={fd.finance_available} onChange={e => sf('finance_available', e.target.checked)} className="w-4 h-4 text-gold" /><span className="text-sm font-medium text-dark">Finance Available</span></label>
+                  <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={fd.finance_available} onChange={e => sf('finance_available', e.target.checked)} className="w-4 h-4 accent-primary" /><span className="text-sm font-medium text-support">Finance Available</span></label>
                 </div>
                 {fd.finance_available && <Field label="Est. Monthly Payment (ZAR)"><input type="number" value={fd.estimated_monthly_payment} onChange={e => sf('estimated_monthly_payment', e.target.value)} className="input-field" /></Field>}
               </div>
@@ -1201,10 +1170,10 @@ function VehicleModal({ vehicle, userId, onClose, onSuccess }: any) {
             <FormSection title="Warranty & Service">
               <div className="space-y-3">
                 <Field label="Previous Owners"><input type="number" value={fd.owners_count} onChange={e => sf('owners_count', e.target.value)} className="input-field w-32" min="0" max="10" /></Field>
-                <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={fd.warranty} onChange={e => sf('warranty', e.target.checked)} className="w-4 h-4 text-gold" /><span className="text-sm font-medium text-dark">Warranty Available</span></label>
+                <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={fd.warranty} onChange={e => sf('warranty', e.target.checked)} className="w-4 h-4 accent-primary" /><span className="text-sm font-medium text-support">Warranty Available</span></label>
                 {fd.warranty && <Field label="Warranty Expiry"><input type="date" value={fd.warranty_expiry} onChange={e => sf('warranty_expiry', e.target.value)} className="input-field" /></Field>}
-                <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={features.warranty_remaining} onChange={e => setFeatures(p => ({ ...p, warranty_remaining: e.target.checked }))} className="w-4 h-4 text-gold" /><span className="text-sm font-medium text-dark">Factory Warranty Remaining</span></label>
-                <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={fd.service_history} onChange={e => sf('service_history', e.target.checked)} className="w-4 h-4 text-gold" /><span className="text-sm font-medium text-dark">Full Service History</span></label>
+                <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={features.warranty_remaining} onChange={e => setFeatures(p => ({ ...p, warranty_remaining: e.target.checked }))} className="w-4 h-4 accent-primary" /><span className="text-sm font-medium text-support">Factory Warranty Remaining</span></label>
+                <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={fd.service_history} onChange={e => sf('service_history', e.target.checked)} className="w-4 h-4 accent-primary" /><span className="text-sm font-medium text-support">Full Service History</span></label>
               </div>
             </FormSection>
 
@@ -1215,14 +1184,14 @@ function VehicleModal({ vehicle, userId, onClose, onSuccess }: any) {
             <FormSection title="Vehicle Features">
               <div className="space-y-5">
                 {Object.entries(FEATURE_CATEGORIES).map(([catKey, cat]) => (
-                  <div key={catKey} className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-bold text-dark mb-3 flex items-center gap-2"><span className="w-2 h-2 bg-gold rounded-full" />{cat.title}</h4>
+                  <div key={catKey} className="bg-gray-50 p-4 rounded-2xl">
+                    <h4 className="text-sm font-bold text-support mb-3 flex items-center gap-2"><span className="w-2 h-2 bg-primary rounded-full" />{cat.title}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                       {cat.features.map(f => (
-                        <label key={f.key} className="flex items-center gap-2 p-1.5 hover:bg-white rounded cursor-pointer transition-colors">
+                        <label key={f.key} className="flex items-center gap-2 p-1.5 hover:bg-white rounded-xl cursor-pointer transition-colors">
                           <input type="checkbox" checked={features[f.key as keyof typeof features] as boolean}
-                            onChange={e => setFeatures(p => ({ ...p, [f.key]: e.target.checked }))} className="w-4 h-4 text-gold" />
-                          <span className="text-xs text-dark">{f.label}</span>
+                            onChange={e => setFeatures(p => ({ ...p, [f.key]: e.target.checked }))} className="w-4 h-4 accent-primary" />
+                          <span className="text-xs text-support">{f.label}</span>
                         </label>
                       ))}
                     </div>
@@ -1233,11 +1202,11 @@ function VehicleModal({ vehicle, userId, onClose, onSuccess }: any) {
           </form>
         </div>
         <div className="p-5 border-t border-gray-100 flex-shrink-0 bg-white flex items-center gap-3">
-          <button onClick={handleSubmit} disabled={submitting||uploading} className="btn-filled btn-filled-gold disabled:opacity-50 flex items-center gap-2">
+          <button onClick={handleSubmit} disabled={submitting||uploading} className="btn-primary disabled:opacity-50 flex items-center gap-2">
             {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : <><Check className="w-4 h-4" />{vehicle ? 'Update Vehicle' : 'Add Vehicle'}</>}
           </button>
-          <button onClick={onClose} disabled={submitting||uploading} className="btn-hollow btn-hollow-gold disabled:opacity-50">Cancel</button>
-          <span className="text-xs text-gray-400 ml-2">* Required · Images uploaded to Cloudinary</span>
+          <button onClick={onClose} disabled={submitting||uploading} className="btn-outline disabled:opacity-50">Cancel</button>
+          <span className="text-xs text-muted ml-2">* Required · Images uploaded to Cloudinary</span>
         </div>
       </div>
     </div>
@@ -1270,8 +1239,8 @@ function UserModal({ onClose, onSuccess }: any) {
         <Field label="Password *"><input type="password" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} required className="input-field" minLength={6} placeholder="••••••••" /></Field>
         <Field label="Role"><select value={formData.role} onChange={e => setFormData(p => ({ ...p, role: e.target.value as any }))} className="input-field"><option value="agent">Agent</option><option value="admin">Admin</option></select></Field>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={submitting} className="btn-filled btn-filled-gold disabled:opacity-50">{submitting ? 'Creating...' : 'Create User'}</button>
-          <button type="button" onClick={onClose} className="btn-hollow btn-hollow-gold">Cancel</button>
+          <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">{submitting ? 'Creating...' : 'Create User'}</button>
+          <button type="button" onClick={onClose} className="btn-outline">Cancel</button>
         </div>
       </form>
     </ModalShell>
@@ -1308,32 +1277,32 @@ function HeroModal({ slide, onClose, onSuccess }: any) {
   return (
     <ModalShell title={slide ? 'Edit Slide' : 'Add Slide'} onClose={onClose} maxW="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="bg-gray-50 rounded-lg p-5">
-          <div className="text-sm font-bold text-dark mb-3">Hero Image *</div>
+        <div className="bg-gray-50 rounded-2xl p-5">
+          <div className="text-sm font-bold text-support mb-3">Hero Image *</div>
           {formData.image_url ? (
             <div className="relative group">
-              <img src={formData.image_url} alt="" className="w-full h-52 object-cover rounded-lg border-2 border-gray-200" />
+              <img src={formData.image_url} alt="" className="w-full h-52 object-cover rounded-xl border border-gray-200" />
               <button type="button" onClick={() => setFormData(p => ({ ...p, image_url: '' }))}
                 className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-4 h-4" /></button>
             </div>
           ) : (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gold transition-colors">
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-primary transition-colors">
               <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="hero-upload" disabled={uploading} />
               <label htmlFor="hero-upload" className="cursor-pointer">
-                {uploading ? <Loader2 className="w-10 h-10 mx-auto text-gold animate-spin" /> : <><Upload className="w-10 h-10 mx-auto text-gray-300 mb-2" /><div className="text-sm text-gray-500">Click to upload · Recommended 1920×1080</div></>}
+                {uploading ? <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin" /> : <><Upload className="w-10 h-10 mx-auto text-gray-300 mb-2" /><div className="text-sm text-muted">Click to upload · Recommended 1920×1080</div></>}
               </label>
             </div>
           )}
         </div>
-        <Field label="Title *"><input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} required className="input-field" placeholder="Welcome to IC Cars" /></Field>
+        <Field label="Title *"><input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} required className="input-field" placeholder="Welcome to Mtsinso Car Sales" /></Field>
         <Field label="Subtitle *"><textarea value={formData.subtitle} onChange={e => setFormData(p => ({ ...p, subtitle: e.target.value }))} required rows={2} className="input-field resize-none" /></Field>
         <Field label="Display Order"><input type="number" value={formData.order_index} onChange={e => setFormData(p => ({ ...p, order_index: parseInt(e.target.value)||0 }))} className="input-field w-28" min="0" /></Field>
-        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.active} onChange={e => setFormData(p => ({ ...p, active: e.target.checked }))} className="w-4 h-4 text-gold" /><span className="text-sm font-medium text-dark">Active (show on homepage)</span></label>
+        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.active} onChange={e => setFormData(p => ({ ...p, active: e.target.checked }))} className="w-4 h-4 accent-primary" /><span className="text-sm font-medium text-support">Active (show on homepage)</span></label>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={submitting||uploading} className="btn-filled btn-filled-gold disabled:opacity-50 flex items-center gap-2">
+          <button type="submit" disabled={submitting||uploading} className="btn-primary disabled:opacity-50 flex items-center gap-2">
             {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : <><Check className="w-4 h-4" />{slide ? 'Update' : 'Add Slide'}</>}
           </button>
-          <button type="button" onClick={onClose} disabled={submitting||uploading} className="btn-hollow btn-hollow-gold disabled:opacity-50">Cancel</button>
+          <button type="button" onClick={onClose} disabled={submitting||uploading} className="btn-outline disabled:opacity-50">Cancel</button>
         </div>
       </form>
     </ModalShell>
@@ -1344,9 +1313,8 @@ function HeroModal({ slide, onClose, onSuccess }: any) {
 function DocRow({ label, url }: { label: string; url: string | null | undefined }) {
   const present = !!url
   const ext = url ? url.split('?')[0].split('.').pop()?.toUpperCase() || 'FILE' : null
-
   return (
-    <div className={`flex items-center justify-between px-3 py-2.5 rounded border ${present ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'}`}>
+    <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${present ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'}`}>
       <div className="flex items-center gap-2">
         {present
           ? <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
@@ -1355,14 +1323,9 @@ function DocRow({ label, url }: { label: string; url: string | null | undefined 
       </div>
       {present && url ? (
         <div className="flex items-center gap-2">
-          {ext && <span className="text-[10px] font-bold text-gray-400 bg-white border border-gray-200 px-1.5 py-0.5 rounded">{ext}</span>}
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="flex items-center gap-1 text-xs font-bold text-gold hover:text-dark transition-colors"
-          >
+          {ext && <span className="text-[10px] font-bold text-muted bg-white border border-gray-200 px-1.5 py-0.5 rounded-full">{ext}</span>}
+          <a href={url} target="_blank" rel="noopener noreferrer" download
+            className="flex items-center gap-1 text-xs font-bold text-primary hover:text-support transition-colors">
             <FileText className="w-3.5 h-3.5" /> View
           </a>
         </div>
@@ -1379,11 +1342,11 @@ function DocRow({ label, url }: { label: string; url: string | null | undefined 
 function ModalShell({ title, onClose, children, maxW = 'max-w-lg' }: any) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className={`card-angled bg-white border-2 border-gold ${maxW} w-full max-h-[90vh] overflow-y-auto`}>
+      <div className={`bg-white rounded-2xl border border-gray-200 ${maxW} w-full max-h-[90vh] overflow-y-auto shadow-xl`}>
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-display text-dark">{title}</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-dark"><X className="w-5 h-5" /></button>
+            <h2 className="text-2xl font-display text-support">{title}</h2>
+            <button onClick={onClose} className="text-muted hover:text-support"><X className="w-5 h-5" /></button>
           </div>
           {children}
         </div>
@@ -1395,7 +1358,7 @@ function ModalShell({ title, onClose, children, maxW = 'max-w-lg' }: any) {
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-base font-bold text-dark mb-4 pb-2 border-b-2 border-gold">{title}</h3>
+      <h3 className="text-base font-bold text-support mb-4 pb-2 border-b-2 border-primary">{title}</h3>
       {children}
     </div>
   )
@@ -1404,7 +1367,7 @@ function FormSection({ title, children }: { title: string; children: React.React
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">{label}</label>
+      <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{label}</label>
       {children}
     </div>
   )
@@ -1413,12 +1376,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function InfoSection({ title, rows }: { title: string; rows: [string, string][] }) {
   return (
     <div>
-      <h4 className="text-sm font-bold text-dark uppercase tracking-wide mb-3 pb-2 border-b border-gray-100">{title}</h4>
+      <h4 className="text-sm font-bold text-support uppercase tracking-wide mb-3 pb-2 border-b border-gray-100">{title}</h4>
       <div className="space-y-1.5">
         {rows.map(([label, value]) => (
           <div key={label} className="flex justify-between text-sm py-0.5">
-            <span className="text-gray-500">{label}</span>
-            <span className="font-medium text-dark text-right max-w-[55%] break-words">{value}</span>
+            <span className="text-muted">{label}</span>
+            <span className="font-medium text-support text-right max-w-[55%] break-words">{value}</span>
           </div>
         ))}
       </div>
@@ -1429,11 +1392,11 @@ function InfoSection({ title, rows }: { title: string; rows: [string, string][] 
 function TabLoader() {
   return (
     <div className="text-center py-16">
-      <div className="inline-block w-10 h-10 border-4 border-gold border-t-transparent rounded-full animate-spin" />
+      <div className="inline-block w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   )
 }
 
 function EmptyState({ message }: { message: string }) {
-  return <div className="text-center py-16 text-gray-400">{message}</div>
+  return <div className="text-center py-16 text-muted">{message}</div>
 }

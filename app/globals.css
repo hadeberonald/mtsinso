@@ -4,81 +4,78 @@
 
 @layer base {
   body {
-    @apply bg-white text-dark;
+    @apply bg-white text-support;
   }
 }
 
 @layer components {
-  /* Custom Hollow Button */
-  .btn-hollow {
-    @apply relative px-8 py-3 font-medium transition-all duration-300;
-    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+
+  /* ── Buttons ─────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-7 py-3 rounded-full bg-primary text-white font-semibold text-sm tracking-wide transition-all duration-300 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/20 active:scale-95;
   }
-  
-  .btn-hollow-gold {
-    @apply text-gold border-2 border-gold bg-transparent;
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center px-7 py-3 rounded-full border-2 border-primary text-primary font-semibold text-sm tracking-wide transition-all duration-300 hover:bg-primary hover:text-white active:scale-95;
   }
-  
-  .btn-hollow-gold:hover {
-    @apply bg-gold text-black;
+
+  .btn-outline-white {
+    @apply inline-flex items-center justify-center px-7 py-3 rounded-full border-2 border-white text-white font-semibold text-sm tracking-wide transition-all duration-300 hover:bg-white hover:text-primary active:scale-95;
   }
-  
-  .btn-hollow-white {
-    @apply text-white border-2 border-white bg-transparent;
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center px-7 py-3 rounded-full text-primary font-semibold text-sm tracking-wide transition-all duration-300 hover:bg-primary/10 active:scale-95;
   }
-  
-  .btn-hollow-white:hover {
-    @apply bg-white text-black;
+
+  /* Legacy aliases (keep old code working) */
+  .btn-filled { @apply btn-primary; }
+  .btn-filled-gold { @apply btn-primary; }
+  .btn-filled-white { @apply btn-outline-white; }
+  .btn-hollow { @apply btn-outline; }
+  .btn-hollow-gold { @apply btn-outline; }
+  .btn-hollow-white { @apply btn-outline-white; }
+
+  /* ── Cards ───────────────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm transition-all duration-300;
   }
-  
-  /* Filled Button */
-  .btn-filled {
-    @apply relative px-8 py-3 font-medium transition-all duration-300;
-    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+
+  .card-hover {
+    @apply card hover:shadow-lg hover:shadow-primary/10 hover:border-primary/20;
   }
-  
-  .btn-filled-gold {
-    @apply bg-gold text-black border-2 border-gold;
-  }
-  
-  .btn-filled-gold:hover {
-    @apply bg-transparent text-gold;
-  }
-  
-  .btn-filled-white {
-    @apply bg-white text-black border-2 border-white;
-  }
-  
-  .btn-filled-white:hover {
-    @apply bg-transparent text-white;
-  }
-  
-  /* Angled Card */
-  .card-angled {
-    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-  }
-  
-  /* Input Fields */
+
+  /* Legacy alias */
+  .card-angled { @apply rounded-2xl; }
+
+  /* ── Inputs ──────────────────────────────────────────── */
   .input-field {
-    @apply w-full px-4 py-3 bg-transparent border-2 border-dark-light text-dark transition-all duration-300;
-    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-support text-sm transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10;
   }
-  
-  .input-field:focus {
-    @apply outline-none border-gold;
-  }
-  
+
   .input-field-white {
-    @apply w-full px-4 py-3 bg-transparent border-2 border-white text-white transition-all duration-300;
-    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    @apply w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/10 text-white text-sm placeholder-white/50 transition-all duration-300 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/10;
   }
-  
-  .input-field-white:focus {
-    @apply outline-none border-gold;
+
+  /* ── Section utilities ───────────────────────────────── */
+  .section-tag {
+    @apply inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.25em] text-primary mb-4;
   }
-  
-  .input-field-white::placeholder {
-    @apply text-gray-400;
+
+  .section-tag-white {
+    @apply inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.25em] text-white/60 mb-4;
+  }
+
+  /* ── Badges ──────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary text-white;
+  }
+
+  .badge-muted {
+    @apply badge bg-gray-100 text-muted;
   }
 }
 

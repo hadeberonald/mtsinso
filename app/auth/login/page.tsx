@@ -22,169 +22,89 @@ export default function LoginPage() {
     setSuccess('')
 
     if (isSignUp) {
-      // Sign up new user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-          }
-        }
+        options: { data: { full_name: fullName } }
       })
-
-      if (signUpError) {
-        setError(signUpError.message)
-        setLoading(false)
-        return
-      }
-
+      if (signUpError) { setError(signUpError.message); setLoading(false); return }
       if (authData.user) {
-        // Insert into users table with 'agent' role (you'll change to admin later)
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            email: email,
-            full_name: fullName,
-            role: 'agent', // Default to agent - you'll manually change to admin
-          })
-
-        if (insertError) {
-          setError(`Account created but profile error: ${insertError.message}`)
-          setLoading(false)
-          return
-        }
-
-        setSuccess('Account created! Now make yourself admin in Supabase, then sign in.')
+        const { error: insertError } = await supabase.from('users').insert({
+          id: authData.user.id, email, full_name: fullName, role: 'agent',
+        })
+        if (insertError) { setError(`Account created but profile error: ${insertError.message}`); setLoading(false); return }
+        setSuccess('Account created. Run the admin SQL in Supabase, then sign in.')
         setIsSignUp(false)
         setLoading(false)
       }
     } else {
-      // Sign in existing user
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (signInError) {
-        setError(signInError.message)
-        setLoading(false)
-      } else {
-        router.push('/dashboard')
-      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) { setError(signInError.message); setLoading(false) }
+      else router.push('/dashboard')
     }
   }
 
   return (
-    <div className="pt-20 min-h-screen bg-black flex items-center justify-center">
-      <div className="max-w-md w-full mx-6">
+    <div className="pt-16 min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+
+        {/* Brand mark */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-display text-white mb-4">
-            Staff <span className="text-gold">{isSignUp ? 'Sign Up' : 'Login'}</span>
+          
+          <h1 className="font-display text-3xl text-support mb-2">
+            Staff {isSignUp ? 'Sign Up' : 'Login'}
           </h1>
-          <p className="text-gray-400">
+          <p className="text-muted text-sm">
             {isSignUp ? 'Create your account' : 'Sign in to access the dashboard'}
           </p>
         </div>
 
-        <div className="card-angled bg-dark-light border-2 border-gold p-8">
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8">
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border-2 border-red-500 text-red-500 text-sm">
-              {error}
-            </div>
+            <div className="mb-5 p-4 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{error}</div>
           )}
-
           {success && (
-            <div className="mb-6 p-4 bg-green-500/10 border-2 border-green-500 text-green-500 text-sm">
+            <div className="mb-5 p-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl">
               {success}
-              <div className="mt-2 text-xs">
-                Run this in Supabase SQL Editor:<br/>
-                <code className="bg-black/50 p-1 block mt-1">
-                  UPDATE users SET role = 'admin' WHERE email = '{email}';
-                </code>
+              <div className="mt-2 text-xs font-mono bg-green-100 p-2 rounded-lg">
+                UPDATE users SET role = 'admin' WHERE email = '{email}';
               </div>
             </div>
           )}
 
-          <form onSubmit={handleAuth} className="space-y-6">
+          <form onSubmit={handleAuth} className="space-y-5">
             {isSignUp && (
               <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-white mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="input-field-white"
-                  placeholder="John Doe"
-                />
+                <label className="block text-xs font-semibold text-support uppercase tracking-wide mb-1.5">Full Name</label>
+                <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required className="input-field" placeholder="John Doe" />
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="input-field-white"
-                placeholder="your@email.com"
-              />
+              <label className="block text-xs font-semibold text-support uppercase tracking-wide mb-1.5">Email Address</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="input-field" placeholder="you@mtsinso.co.za" />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="input-field-white"
-                placeholder="••••••••"
-              />
-              {isSignUp && (
-                <p className="text-xs text-gray-400 mt-1">Minimum 6 characters</p>
-              )}
+              <label className="block text-xs font-semibold text-support uppercase tracking-wide mb-1.5">Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} className="input-field" placeholder="••••••••" />
+              {isSignUp && <p className="text-xs text-muted mt-1">Minimum 6 characters</p>}
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-filled btn-filled-gold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? (isSignUp ? 'Creating Account...' : 'Signing in...') : (isSignUp ? 'Create Account' : 'Sign In')}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                setIsSignUp(!isSignUp)
-                setError('')
-                setSuccess('')
-              }}
-              className="text-sm text-gold hover:underline"
-            >
+          <div className="mt-5 text-center">
+            <button onClick={() => { setIsSignUp(!isSignUp); setError(''); setSuccess('') }}
+              className="text-sm text-primary hover:text-primary-dark transition-colors">
               {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
             </button>
           </div>
 
           <div className="mt-4 text-center">
-            <Link href="/" className="text-sm text-gray-400 hover:text-gold transition-colors">
-              Back to Home
-            </Link>
+            <Link href="/" className="text-xs text-muted hover:text-support transition-colors">Back to Home</Link>
           </div>
         </div>
       </div>

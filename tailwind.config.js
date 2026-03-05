@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: false,
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -8,19 +9,35 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        gold: {
-          light: '#ab832c',
-          DEFAULT: '#ab832c',
-          dark: '#ab832c',
+        primary: {
+          light: '#8a0000',
+          DEFAULT: '#640000',
+          dark: '#3d0000',
+        },
+        support: {
+          DEFAULT: '#211c19',
+          light: '#2e2824',
+        },
+        muted: {
+          DEFAULT: '#858587',
+          light: '#a0a0a2',
         },
         dark: {
-          DEFAULT: '#000000',
-          light: '#323232',
+          DEFAULT: '#211c19',
+          light: '#2e2824',
+        },
+        gold: {
+          DEFAULT: '#640000',
         }
       },
       fontFamily: {
         sans: ['var(--font-sans)'],
         display: ['var(--font-display)'],
+      },
+      borderRadius: {
+        'xl': '0.75rem',
+        '2xl': '1rem',
+        '3xl': '1.5rem',
       },
     },
   },

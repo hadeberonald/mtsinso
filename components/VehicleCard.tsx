@@ -13,79 +13,83 @@ interface Vehicle {
   fuel_type: string
   images: string[]
   drivetrain: string
+  condition?: string
+  finance_available?: boolean
+  estimated_monthly_payment?: number | null
 }
 
-interface VehicleCardProps {
-  vehicle: Vehicle
-}
+export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+  const formatPrice = (p: number) =>
+    new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 0 }).format(p)
 
-export default function VehicleCard({ vehicle }: VehicleCardProps) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 0,
-    }).format(price)
-  }
-
-  const formatMileage = (mileage: number) => {
-    return new Intl.NumberFormat('en-ZA').format(mileage) + ' km'
-  }
+  const formatMileage = (m: number) =>
+    new Intl.NumberFormat('en-ZA').format(m) + ' km'
 
   return (
     <Link href={`/vehicles/${vehicle.id}`} className="group block">
-      <div className="card-angled bg-white border-2 border-dark-light overflow-hidden transition-all duration-300 hover:border-gold hover:shadow-xl">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/20 hover:-translate-y-1">
+
         {/* Image */}
-        <div className="relative h-56 overflow-hidden bg-gray-100">
-          {vehicle.images && vehicle.images.length > 0 ? (
+        <div className="relative h-52 overflow-hidden bg-gray-100 rounded-t-2xl">
+          {vehicle.images?.length > 0 ? (
             <Image
               src={vehicle.images[0]}
               alt={`${vehicle.make} ${vehicle.model}`}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+            <div className="absolute inset-0 flex items-center justify-center text-gray-300 text-sm">
               No Image
             </div>
           )}
-          {/* Price Tag */}
-          <div className="absolute top-4 left-4 bg-gold text-black px-4 py-2 font-bold">
+
+          {/* Price badge */}
+          <div className="absolute top-3 left-3 bg-primary text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
             {formatPrice(vehicle.price)}
           </div>
+
+          {/* Condition badge */}
+          {vehicle.condition && (
+            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-support text-xs font-semibold px-2.5 py-1 rounded-full">
+              {vehicle.condition}
+            </div>
+          )}
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <h3 className="text-2xl font-display text-dark mb-2">
+        <div className="p-5">
+          <h3 className="font-display text-xl text-support mb-1 leading-snug">
             {vehicle.year} {vehicle.make} {vehicle.model}
           </h3>
 
-          {/* Specs Grid */}
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="w-4 h-4 mr-2 text-gold" />
-              <span>{vehicle.year}</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Gauge className="w-4 h-4 mr-2 text-gold" />
-              <span>{formatMileage(vehicle.mileage)}</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Settings className="w-4 h-4 mr-2 text-gold" />
-              <span>{vehicle.transmission}</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Fuel className="w-4 h-4 mr-2 text-gold" />
-              <span>{vehicle.fuel_type}</span>
-            </div>
+          {vehicle.finance_available && vehicle.estimated_monthly_payment && (
+            <p className="text-xs text-muted mb-3">
+              From {formatPrice(vehicle.estimated_monthly_payment)}/month
+            </p>
+          )}
+
+          {/* Specs */}
+          <div className="grid grid-cols-2 gap-2 my-4">
+            {[
+              { Icon: Calendar, value: String(vehicle.year) },
+              { Icon: Gauge,    value: formatMileage(vehicle.mileage) },
+              { Icon: Settings, value: vehicle.transmission },
+              { Icon: Fuel,     value: vehicle.fuel_type },
+            ].map(({ Icon, value }) => (
+              <div key={value} className="flex items-center gap-2 text-xs text-muted">
+                <Icon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <span className="truncate">{value}</span>
+              </div>
+            ))}
           </div>
 
-          {/* View Details Button */}
-          <div className="mt-6">
-            <button className="w-full btn-hollow btn-hollow-gold">
+          {/* CTA */}
+          <div className="pt-3 border-t border-gray-100">
+            <span className="btn-outline w-full text-sm py-2.5 block text-center rounded-xl">
               View Details
-            </button>
+            </span>
           </div>
         </div>
       </div>

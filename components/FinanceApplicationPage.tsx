@@ -21,7 +21,6 @@ function parseIdNumber(id: string): { valid: boolean; dob: string; age: number; 
   const dob = `${fullYear}-${String(mo).padStart(2, '0')}-${String(dy).padStart(2, '0')}`
   const age = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
   const gender = parseInt(id.slice(6, 10)) >= 5000 ? 'Male' : 'Female'
-  // Luhn check
   let sum = 0
   for (let i = 0; i < 13; i++) {
     let d = parseInt(id[i])
@@ -32,9 +31,8 @@ function parseIdNumber(id: string): { valid: boolean; dob: string; age: number; 
   return { valid: true, dob, age, gender }
 }
 
-// ─── Improved Pre-Approval Engine ─────────────────────────────
+// ─── Pre-Approval Engine ───────────────────────────────────────
 function calculatePreApproval(data: any) {
-  // Hard blocks
   if (data.decl_under_debt_review) return {
     status: 'declined',
     notes: 'Applicants under debt review cannot take on new credit per the National Credit Act.',
@@ -56,37 +54,22 @@ function calculatePreApproval(data: any) {
     estimatedMonthly: 0, stressedMonthly: 0, maxLoan: 0, disposable: 0, dti: 0,
   }
 
-  // Income
   const totalIncome = (data.net_monthly_income || 0) + (data.other_income_amount || 0)
-  
-  // Obligations (itemised)
   const totalObligations =
-    (data.obligation_bond_rent || 0) +
-    (data.obligation_vehicle_finance || 0) +
-    (data.obligation_credit_cards || 0) +
-    (data.obligation_store_accounts || 0) +
-    (data.obligation_personal_loans || 0) +
-    (data.obligation_maintenance || 0) +
+    (data.obligation_bond_rent || 0) + (data.obligation_vehicle_finance || 0) +
+    (data.obligation_credit_cards || 0) + (data.obligation_store_accounts || 0) +
+    (data.obligation_personal_loans || 0) + (data.obligation_maintenance || 0) +
     (data.obligation_other || 0)
 
-  // NCR minimum living costs
   const ncr_minimum = 3500 + ((data.dependants || 0) * 1200)
   const livingCosts = Math.max(data.monthly_living_expenses || 0, ncr_minimum)
+  const disposable  = totalIncome - totalObligations - livingCosts
+  const dti = data.gross_monthly_income > 0 ? totalObligations / data.gross_monthly_income : 1
 
-  const disposable = totalIncome - totalObligations - livingCosts
-
-  // DTI ratio (existing debt / gross income)
-  const dti = data.gross_monthly_income > 0
-    ? totalObligations / data.gross_monthly_income
-    : 1
-
-  // Max instalment: lesser of 30% gross OR 75% disposable
   const maxByGross      = (data.gross_monthly_income || 0) * 0.30
   const maxByDisposable = disposable * 0.75
   const maxInstalment   = Math.min(maxByGross, Math.max(0, maxByDisposable))
 
-  // Loan calc — standard rate: prime (11.75%) + 2.5% = 14.25%
-  // Stress rate: prime + 5% = 16.75%
   const calcPMT = (principal: number, annualRate: number, months: number) => {
     if (principal <= 0 || months <= 0) return 0
     const r = annualRate / 12
@@ -98,52 +81,40 @@ function calculatePreApproval(data: any) {
     return (pmt * (1 - Math.pow(1 + r, -months))) / r
   }
 
-  const term = data.preferred_term_months || 72
-  const loanRequested = data.loan_amount_requested || (data.vehicle_price - (data.deposit_amount || 0))
-  const maxLoan       = calcPrincipal(maxInstalment, 0.1425, term)
+  const term             = data.preferred_term_months || 72
+  const loanRequested    = data.loan_amount_requested || (data.vehicle_price - (data.deposit_amount || 0))
+  const maxLoan          = calcPrincipal(maxInstalment, 0.1425, term)
   const estimatedMonthly = calcPMT(loanRequested, 0.1425, term)
   const stressedMonthly  = calcPMT(loanRequested, 0.1675, term)
 
-  // Scoring
   let score = 100
-
-  // Affordability
-  if (disposable < 0)                           score -= 40
-  else if (estimatedMonthly > maxInstalment)    score -= 30
+  if (disposable < 0)                              score -= 40
+  else if (estimatedMonthly > maxInstalment)       score -= 30
   else if (estimatedMonthly > maxInstalment * 0.9) score -= 15
-
-  // DTI
-  if (dti > 0.50)       score -= 25
-  else if (dti > 0.40)  score -= 15
-  else if (dti > 0.30)  score -= 5
-
-  // Credit history
-  if (data.decl_has_judgements)        score -= 35
+  if (dti > 0.50)      score -= 25
+  else if (dti > 0.40) score -= 15
+  else if (dti > 0.30) score -= 5
+  if (data.decl_has_judgements)            score -= 35
   else if (data.decl_has_been_blacklisted) score -= 25
-
-  // Employment
-  if (data.employment_status === 'Self-Employed')       score -= 8
-  if (data.employment_type === 'Contract')              score -= 10
-  if (data.employment_type === 'Part-time')             score -= 15
+  if (data.employment_status === 'Self-Employed') score -= 8
+  if (data.employment_type === 'Contract')        score -= 10
+  if (data.employment_type === 'Part-time')       score -= 15
   const yearsEmp = (data.years_employed || 0) + ((data.months_employed || 0) / 12)
-  if (yearsEmp < 0.5)  score -= 20
-  else if (yearsEmp < 1) score -= 12
-  else if (yearsEmp < 2) score -= 5
-
-  // Deposit bonus
+  if (yearsEmp < 0.5)      score -= 20
+  else if (yearsEmp < 1)   score -= 12
+  else if (yearsEmp < 2)   score -= 5
   if (data.vehicle_price > 0 && data.deposit_amount > 0) {
     const dep = data.deposit_amount / data.vehicle_price
     if (dep >= 0.20)      score += 10
     else if (dep >= 0.10) score += 5
   }
-
   score = Math.max(0, Math.min(100, score))
 
   let status: string
-  if (score >= 70)       status = 'strong'
-  else if (score >= 45)  status = 'review'
-  else if (score >= 20)  status = 'manual'
-  else                   status = 'declined'
+  if (score >= 70)      status = 'strong'
+  else if (score >= 45) status = 'review'
+  else if (score >= 20) status = 'manual'
+  else                  status = 'declined'
 
   return { status, notes: '', estimatedMonthly, stressedMonthly, maxLoan, disposable, dti }
 }
@@ -169,11 +140,7 @@ function DocUpload({
         const url = await uploadFinanceDoc(file)
         uploaded.push(url)
       }
-      if (multiple) {
-        onChange([...urls, ...uploaded])
-      } else {
-        onChange(uploaded[0])
-      }
+      onChange(multiple ? [...urls, ...uploaded] : uploaded[0])
     } catch {
       alert('Upload failed. Please try again.')
     }
@@ -182,11 +149,7 @@ function DocUpload({
   }
 
   const remove = (i: number) => {
-    if (multiple) {
-      onChange(urls.filter((_, j) => j !== i))
-    } else {
-      onChange('')
-    }
+    onChange(multiple ? urls.filter((_, j) => j !== i) : '')
   }
 
   const id = `doc-${label.replace(/\s/g, '-').toLowerCase()}`
@@ -194,22 +157,21 @@ function DocUpload({
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
-        <label className="text-sm font-semibold text-dark">{label}</label>
+        <label className="text-sm font-semibold text-support">{label}</label>
         {required && <span className="text-xs text-red-500 font-bold">Required</span>}
         {urls.length > 0 && <Check className="w-3.5 h-3.5 text-green-500 ml-auto" />}
       </div>
-      {sublabel && <p className="text-xs text-gray-400 mb-2">{sublabel}</p>}
+      {sublabel && <p className="text-xs text-muted mb-2">{sublabel}</p>}
 
-      {/* Uploaded files */}
       {urls.length > 0 && (
         <div className="space-y-1.5 mb-2">
           {urls.map((url, i) => {
             const isPdf = url.includes('.pdf') || url.includes('raw/upload')
             const name  = url.split('/').pop()?.split('?')[0] || `File ${i + 1}`
             return (
-              <div key={i} className="flex items-center gap-2 bg-green-50 border border-green-200 rounded px-3 py-2">
+              <div key={i} className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
                 <FileText className="w-4 h-4 text-green-600 flex-shrink-0" />
-                <span className="text-xs text-green-700 flex-1 truncate">{isPdf ? '📄 ' : '🖼️ '}{name}</span>
+                <span className="text-xs text-green-700 flex-1 truncate">{isPdf ? 'PDF: ' : 'IMG: '}{name}</span>
                 <button type="button" onClick={() => remove(i)} className="text-gray-400 hover:text-red-500 flex-shrink-0">
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -219,17 +181,15 @@ function DocUpload({
         </div>
       )}
 
-      {/* Upload zone */}
       {(multiple || urls.length === 0) && (
-        <div className={`border-2 border-dashed rounded-lg transition-colors ${uploading ? 'border-gold bg-gold/5' : 'border-gray-200 hover:border-gold/50 bg-gray-50'}`}>
+        <div className={`border-2 border-dashed rounded-xl transition-colors ${uploading ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50 bg-gray-50'}`}>
           <input type="file" id={id} accept={accept} multiple={multiple} onChange={handleFiles} className="hidden" disabled={uploading} />
           <label htmlFor={id} className="flex items-center gap-3 px-4 py-3 cursor-pointer">
-            {uploading ? (
-              <Loader2 className="w-5 h-5 text-gold animate-spin flex-shrink-0" />
-            ) : (
-              <Upload className="w-5 h-5 text-gray-400 flex-shrink-0" />
-            )}
-            <span className="text-sm text-gray-500">
+            {uploading
+              ? <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+              : <Upload className="w-5 h-5 text-muted flex-shrink-0" />
+            }
+            <span className="text-sm text-muted">
               {uploading ? 'Uploading...' : multiple ? 'Click to upload files' : 'Click to upload'}
             </span>
             <span className="ml-auto text-xs text-gray-300">PDF, JPG, PNG</span>
@@ -242,16 +202,16 @@ function DocUpload({
 
 // ─── Step configuration ────────────────────────────────────────
 const STEPS = [
-  { id: 1, title: 'Personal',    Icon: User },
-  { id: 2, title: 'Employment',  Icon: Briefcase },
-  { id: 3, title: 'Finances',    Icon: TrendingUp },
-  { id: 4, title: 'Loan',        Icon: Calculator },
-  { id: 5, title: 'Declarations',Icon: Shield },
-  { id: 6, title: 'Documents',   Icon: FileText },
-  { id: 7, title: 'Confirm',     Icon: CheckCircle },
+  { id: 1, title: 'Personal',     Icon: User },
+  { id: 2, title: 'Employment',   Icon: Briefcase },
+  { id: 3, title: 'Finances',     Icon: TrendingUp },
+  { id: 4, title: 'Loan',         Icon: Calculator },
+  { id: 5, title: 'Declarations', Icon: Shield },
+  { id: 6, title: 'Documents',    Icon: FileText },
+  { id: 7, title: 'Confirm',      Icon: CheckCircle },
 ]
 
-const SA_BANKS = ['ABSA', 'Capitec Bank', 'FNB', 'Nedbank', 'Standard Bank', 'African Bank', 'Discovery Bank', 'Investec', 'Tyme Bank', 'Other']
+const SA_BANKS     = ['ABSA', 'Capitec Bank', 'FNB', 'Nedbank', 'Standard Bank', 'African Bank', 'Discovery Bank', 'Investec', 'Tyme Bank', 'Other']
 const SA_PROVINCES = ['Gauteng', 'Western Cape', 'KwaZulu-Natal', 'Eastern Cape', 'Limpopo', 'Mpumalanga', 'North West', 'Free State', 'Northern Cape']
 
 // ─── Main Component ────────────────────────────────────────────
@@ -260,22 +220,18 @@ export default function FinanceApplicationPage({
 }: {
   vehicleId?: string; vehicleDetails?: string; vehiclePrice?: number
 }) {
-  const [step, setStep]       = useState(1)
+  const [step, setStep]           = useState(1)
   const [submitting, setSubmitting] = useState(false)
-  const [result, setResult]   = useState<any>(null)
-  const [idError, setIdError] = useState('')
+  const [result, setResult]       = useState<any>(null)
+  const [idError, setIdError]     = useState('')
 
   const [form, setForm] = useState<any>({
-    // Personal
     full_name: '', id_number: '', date_of_birth: '', id_age: null,
     nationality: 'South African', marital_status: '', dependants: 0,
-    // Contact
     email: '', phone: '', whatsapp: '', alt_phone: '',
-    // Residential
     residential_address: '', residential_suburb: '', residential_city: '',
     residential_province: '', residential_postal_code: '',
     residential_status: '', years_at_address: 0, months_at_address: 0,
-    // Employment
     employment_status: '', employment_type: '',
     employer_name: '', employer_address: '', employer_phone: '',
     job_title: '', years_employed: 0, months_employed: 0,
@@ -283,43 +239,36 @@ export default function FinanceApplicationPage({
     business_name: '', business_reg_number: '', business_age_years: 0,
     business_industry: '', business_address: '',
     pension_fund: '', pension_fund_phone: '',
-    // Income
     gross_monthly_income: 0, net_monthly_income: 0,
     other_income_amount: 0, other_income_source: '',
-    // Obligations
     obligation_bond_rent: 0, obligation_vehicle_finance: 0,
     obligation_credit_cards: 0, obligation_store_accounts: 0,
     obligation_personal_loans: 0, obligation_maintenance: 0,
     obligation_other: 0, obligation_other_desc: '',
     monthly_living_expenses: 0,
-    // Loan
     vehicle_price: vehiclePrice || 0,
     deposit_amount: 0, loan_amount_requested: vehiclePrice || 0,
     preferred_term_months: 72,
     trade_in_vehicle: false, trade_in_details: '', trade_in_estimated_value: 0,
     bank_name: '', account_type: '', years_with_bank: 0,
     salary_paid_into_this_account: true,
-    // Declarations
     decl_has_existing_vehicle_finance: false, decl_has_home_loan: false,
     decl_has_credit_cards: false, decl_has_store_accounts: false,
     decl_has_personal_loans: false, decl_has_been_blacklisted: false,
     decl_has_judgements: false, decl_under_debt_review: false,
     decl_ever_sequestrated: false, decl_ever_insolvent: false,
-    // Documents
     doc_id_front: '', doc_id_back: '',
     doc_proof_of_residence: [],
     doc_payslip_month1: '', doc_payslip_month2: '', doc_payslip_month3: '',
     doc_bank_statement_month1: '', doc_bank_statement_month2: '', doc_bank_statement_month3: '',
     doc_bank_statement_month4: '', doc_bank_statement_month5: '', doc_bank_statement_month6: '',
     doc_financial_statements: [], doc_existing_finance: [], doc_other: [],
-    // Consents
     consent_credit_check: false, consent_contact: false,
     consent_popia: false, consent_terms: false,
   })
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
 
-  // ID number handler — auto-extract DOB and age
   const handleIdChange = (val: string) => {
     set('id_number', val)
     if (val.length === 13) {
@@ -374,39 +323,37 @@ export default function FinanceApplicationPage({
   if (result) {
     type CfgKey = 'strong' | 'review' | 'manual' | 'declined'
     const cfgMap: Record<CfgKey, { Icon: any; color: string; bg: string; heading: string; body: string }> = {
-      strong:   { Icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 border-green-200', heading: 'Application Received — Looking Strong', body: 'Based on the information provided, your application looks promising. A dedicated finance consultant will contact you within 24 hours to discuss next steps and confirm your supporting documents.' },
-      review:   { Icon: Clock,       color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200',  heading: 'Application Received — Under Review', body: 'Your application has been received and will be reviewed by our finance team. A consultant will be in touch within 24 hours.' },
-      manual:   { Icon: FileText,    color: 'text-blue-600',  bg: 'bg-blue-50 border-blue-200',    heading: 'Application Received — Manual Assessment', body: 'Your application requires a personal review by our finance specialists. We will contact you within 24–48 hours to discuss your specific situation and available options.' },
-      declined: { Icon: XCircle,     color: 'text-red-600',   bg: 'bg-red-50 border-red-200',      heading: 'Application Received', body: 'Based on the current information, standard financing may be difficult at this time. However, our team will still be in touch to discuss all possible options available to you.' },
+      strong:   { Icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 border-green-200',  heading: 'Application Received — Looking Strong',       body: 'Based on the information provided, your application looks promising. A dedicated finance consultant will contact you within 24 hours to discuss next steps and confirm your supporting documents.' },
+      review:   { Icon: Clock,       color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200',   heading: 'Application Received — Under Review',           body: 'Your application has been received and will be reviewed by our finance team. A consultant will be in touch within 24 hours.' },
+      manual:   { Icon: FileText,    color: 'text-blue-600',  bg: 'bg-blue-50 border-blue-200',     heading: 'Application Received — Manual Assessment',      body: 'Your application requires a personal review by our finance specialists. We will contact you within 24–48 hours to discuss your specific situation and available options.' },
+      declined: { Icon: XCircle,     color: 'text-red-600',   bg: 'bg-red-50 border-red-200',       heading: 'Application Received',                          body: 'Based on the current information, standard financing may be difficult at this time. However, our team will still be in touch to discuss all possible options available to you.' },
     }
-    const fallbackCfg = { Icon: Clock, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200', heading: 'Application Received', body: 'Our team will be in contact shortly.' }
-    const cfg = (cfgMap as any)[result.status as string] ?? fallbackCfg
-
+    const cfg = (cfgMap as any)[result.status as string] ?? { Icon: Clock, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200', heading: 'Application Received', body: 'Our team will be in contact shortly.' }
     const { Icon } = cfg
 
     return (
       <div className="min-h-screen bg-white pt-24 pb-16">
         <div className="max-w-xl mx-auto px-6">
-          <div className={`border-2 ${cfg.bg} p-10 text-center`} style={{ clipPath: 'polygon(0 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%)' }}>
+          <div className={`rounded-2xl border-2 ${cfg.bg} p-10 text-center`}>
             <Icon className={`w-16 h-16 mx-auto mb-5 ${cfg.color}`} />
-            <h1 className="text-3xl font-display text-dark mb-3">{cfg.heading}</h1>
+            <h1 className="text-3xl font-display text-support mb-3">{cfg.heading}</h1>
             <p className="text-gray-600 leading-relaxed mb-8">{cfg.body}</p>
 
-            <div className="bg-white border border-gray-200 rounded-lg p-5 text-left text-sm text-gray-500 mb-8">
-              <strong className="text-dark block mb-2 flex items-center gap-2">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 text-left text-sm text-muted mb-8">
+              <strong className="text-support block mb-2 flex items-center gap-2">
                 <Info className="w-4 h-4" /> Important — What Happens Next
               </strong>
               <ul className="space-y-1.5 text-xs">
-                <li>• A consultant will call you on <strong className="text-dark">{form.phone}</strong> within 24 hours</li>
+                <li>• A consultant will call you on <strong className="text-support">{form.phone}</strong> within 24 hours</li>
                 <li>• Ensure your supporting documents are ready (ID, payslips, bank statements)</li>
                 <li>• This is not a credit decision — formal approval is done by accredited lenders</li>
-                <li>• IC Cars acts as an intermediary, not a registered credit provider</li>
+                <li>• Mtsinso Car Sales acts as an intermediary, not a registered credit provider</li>
               </ul>
             </div>
 
             <div className="flex gap-3 justify-center flex-wrap">
-              <a href="/vehicles" className="btn-filled btn-filled-gold">Browse More Vehicles</a>
-              <a href="/contact" className="btn-hollow btn-hollow-gold flex items-center gap-2">
+              <a href="/vehicles" className="btn-primary">Browse More Vehicles</a>
+              <a href="/contact" className="btn-outline flex items-center gap-2">
                 <Phone className="w-4 h-4" /> Contact Us
               </a>
             </div>
@@ -416,25 +363,24 @@ export default function FinanceApplicationPage({
     )
   }
 
-  // ── Step progress bar ───────────────────────────────────────
   const progressPct = ((step - 1) / (STEPS.length - 1)) * 100
 
   return (
     <div className="min-h-screen bg-white pt-24 pb-16">
       {/* Header */}
-      <div className="bg-black py-12 mb-10">
+      <div className="bg-support py-12 mb-10">
         <div className="max-w-3xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-widest mb-4">
+          <div className="inline-flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest mb-4">
             <Shield className="w-3.5 h-3.5" /> NCR Compliant · Secure Application
           </div>
           <h1 className="text-4xl md:text-5xl font-display text-white mb-3">
-            Finance <span className="text-gold">Application</span>
+            Finance <span className="text-primary">Application</span>
           </h1>
           <p className="text-gray-400 max-w-lg mx-auto text-sm leading-relaxed">
             Complete all sections accurately. The information you provide allows us to match you with the most suitable finance options from our lender network.
           </p>
           {vehicleDetails && (
-            <div className="mt-4 inline-block bg-gold text-black px-4 py-1.5 font-bold text-xs uppercase tracking-wide">
+            <div className="mt-4 inline-block bg-primary text-white px-4 py-1.5 rounded-full font-semibold text-xs uppercase tracking-wide">
               Applying for: {vehicleDetails}
             </div>
           )}
@@ -444,24 +390,24 @@ export default function FinanceApplicationPage({
       <div className="max-w-3xl mx-auto px-6">
         {/* Progress */}
         <div className="mb-8">
-          <div className="flex justify-between text-xs text-gray-400 mb-2">
+          <div className="flex justify-between text-xs text-muted mb-2">
             <span>Step {step} of {STEPS.length}</span>
             <span>{STEPS[step - 1].title}</span>
           </div>
-          <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-gold rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="flex justify-between mt-3">
             {STEPS.map(s => {
               const isDone   = step > s.id
               const isActive = step === s.id
-              const SIcon = s.Icon
+              const SIcon    = s.Icon
               return (
                 <div key={s.id} className="flex flex-col items-center gap-1">
-                  <div className={`w-8 h-8 flex items-center justify-center transition-all ${isDone ? 'bg-gold text-black' : isActive ? 'bg-black text-gold border-2 border-gold' : 'bg-gray-100 text-gray-300'}`}>
+                  <div className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${isDone ? 'bg-primary text-white' : isActive ? 'bg-white text-primary border-2 border-primary' : 'bg-gray-100 text-gray-300'}`}>
                     {isDone ? <Check className="w-4 h-4" /> : <SIcon className="w-4 h-4" />}
                   </div>
-                  <span className={`text-[10px] hidden md:block ${isActive ? 'text-dark font-semibold' : 'text-gray-400'}`}>{s.title}</span>
+                  <span className={`text-[10px] hidden md:block ${isActive ? 'text-support font-semibold' : 'text-muted'}`}>{s.title}</span>
                 </div>
               )
             })}
@@ -469,20 +415,18 @@ export default function FinanceApplicationPage({
         </div>
 
         {/* Form card */}
-        <div className="bg-white border-2 border-gray-100 shadow-sm" style={{ clipPath: 'polygon(0 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%)' }}>
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
           <div className="p-8">
 
             {/* ── STEP 1: Personal & Contact ── */}
             {step === 1 && (
               <div className="space-y-6">
                 <SectionHeading icon={<User />} title="Personal Information" />
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <FLabel>Full Name (as per ID) *</FLabel>
                     <input className="input-field" value={form.full_name} onChange={e => set('full_name', e.target.value)} placeholder="John Michael Doe" />
                   </div>
-
                   <div className="md:col-span-2">
                     <FLabel>SA ID Number *</FLabel>
                     <input
@@ -499,14 +443,11 @@ export default function FinanceApplicationPage({
                       </p>
                     )}
                   </div>
-
                   <div>
                     <FLabel>Date of Birth *</FLabel>
-                    <input type="date" className="input-field bg-gray-50" value={form.date_of_birth}
-                      onChange={e => set('date_of_birth', e.target.value)} readOnly={!!form.id_age} />
-                    {form.id_age && <p className="text-xs text-gray-400 mt-1">Auto-filled from ID number</p>}
+                    <input type="date" className="input-field bg-gray-50" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} readOnly={!!form.id_age} />
+                    {form.id_age && <p className="text-xs text-muted mt-1">Auto-filled from ID number</p>}
                   </div>
-
                   <div>
                     <FLabel>Nationality *</FLabel>
                     <select className="input-field" value={form.nationality} onChange={e => set('nationality', e.target.value)}>
@@ -515,7 +456,6 @@ export default function FinanceApplicationPage({
                       <option>Other</option>
                     </select>
                   </div>
-
                   <div>
                     <FLabel>Marital Status *</FLabel>
                     <select className="input-field" value={form.marital_status} onChange={e => set('marital_status', e.target.value)}>
@@ -527,7 +467,6 @@ export default function FinanceApplicationPage({
                       <option>Widowed</option>
                     </select>
                   </div>
-
                   <div>
                     <FLabel>Number of Financial Dependants</FLabel>
                     <input type="number" min="0" max="15" className="input-field" value={form.dependants} onChange={e => set('dependants', parseInt(e.target.value) || 0)} />
@@ -569,7 +508,7 @@ export default function FinanceApplicationPage({
                     </div>
                     <div>
                       <FLabel>City *</FLabel>
-                      <input className="input-field" value={form.residential_city} onChange={e => set('residential_city', e.target.value)} placeholder="Pretoria" />
+                      <input className="input-field" value={form.residential_city} onChange={e => set('residential_city', e.target.value)} placeholder="Durban" />
                     </div>
                     <div>
                       <FLabel>Province *</FLabel>
@@ -580,7 +519,7 @@ export default function FinanceApplicationPage({
                     </div>
                     <div>
                       <FLabel>Postal Code *</FLabel>
-                      <input className="input-field" value={form.residential_postal_code} onChange={e => set('residential_postal_code', e.target.value)} placeholder="0001" maxLength={4} />
+                      <input className="input-field" value={form.residential_postal_code} onChange={e => set('residential_postal_code', e.target.value)} placeholder="4001" maxLength={4} />
                     </div>
                     <div>
                       <FLabel>Residential Status *</FLabel>
@@ -612,14 +551,13 @@ export default function FinanceApplicationPage({
             {step === 2 && (
               <div className="space-y-6">
                 <SectionHeading icon={<Briefcase />} title="Employment Details" />
-
                 <div>
                   <FLabel>Employment Status *</FLabel>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {['Employed', 'Self-Employed', 'Retired', 'Unemployed'].map(s => (
                       <button key={s} type="button"
                         onClick={() => set('employment_status', s)}
-                        className={`p-3 text-sm font-semibold border-2 transition-all text-center ${form.employment_status === s ? 'bg-black text-gold border-gold' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                        className={`p-3 text-sm font-semibold rounded-xl border-2 transition-all text-center ${form.employment_status === s ? 'bg-primary text-white border-primary' : 'border-gray-200 text-support hover:border-primary/40'}`}>
                         {s}
                       </button>
                     ))}
@@ -710,7 +648,7 @@ export default function FinanceApplicationPage({
                 )}
 
                 {form.employment_status === 'Unemployed' && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-700">Vehicle finance requires a verifiable income source. You may still submit this application and our consultant will discuss available options with you.</p>
                   </div>
@@ -722,7 +660,7 @@ export default function FinanceApplicationPage({
             {step === 3 && (
               <div className="space-y-6">
                 <SectionHeading icon={<TrendingUp />} title="Monthly Income" />
-                <p className="text-xs text-gray-400 -mt-3">All amounts in ZAR. Lenders verify these figures against your payslips and bank statements.</p>
+                <p className="text-xs text-muted -mt-3">All amounts in ZAR. Lenders verify these figures against your payslips and bank statements.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <RandField label="Gross Monthly Salary (before tax) *" value={form.gross_monthly_income} onChange={v => set('gross_monthly_income', v)} placeholder="30 000" />
@@ -736,8 +674,7 @@ export default function FinanceApplicationPage({
 
                 <div className="border-t border-gray-100 pt-6">
                   <SectionHeading icon={<CreditCard />} title="Monthly Obligations" />
-                  <p className="text-xs text-gray-400 mt-1 mb-4">Enter your current monthly repayment amounts. Enter 0 if not applicable.</p>
-
+                  <p className="text-xs text-muted mt-1 mb-4">Enter your current monthly repayment amounts. Enter 0 if not applicable.</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <RandField label="Bond / Rent Payment" value={form.obligation_bond_rent} onChange={v => set('obligation_bond_rent', v)} />
                     <RandField label="Existing Vehicle Finance Instalments" value={form.obligation_vehicle_finance} onChange={v => set('obligation_vehicle_finance', v)} />
@@ -755,9 +692,8 @@ export default function FinanceApplicationPage({
                     </div>
                   </div>
 
-                  {/* Live affordability preview */}
                   {form.net_monthly_income > 0 && (
-                    <div className="mt-5 bg-black rounded-lg p-5">
+                    <div className="mt-5 bg-support rounded-2xl p-5">
                       <div className="text-xs text-gray-400 uppercase tracking-wide mb-3 font-semibold">Affordability Preview</div>
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
@@ -772,7 +708,7 @@ export default function FinanceApplicationPage({
                         </div>
                         <div>
                           <div className="text-xs text-gray-500 mb-1">Max Car Payment</div>
-                          <div className="text-base font-bold text-gold">
+                          <div className="text-base font-bold text-primary">
                             R {Math.round(Math.max(0, Math.min(form.gross_monthly_income * 0.30, disposablePreview * 0.75))).toLocaleString('en-ZA')}
                           </div>
                         </div>
@@ -787,14 +723,13 @@ export default function FinanceApplicationPage({
             {step === 4 && (
               <div className="space-y-6">
                 <SectionHeading icon={<Calculator />} title="Loan Request" />
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <RandField label="Vehicle Purchase Price *" value={form.vehicle_price} onChange={v => { set('vehicle_price', v); set('loan_amount_requested', Math.max(0, v - (form.deposit_amount || 0))) }} />
                   <RandField label="Deposit Amount" value={form.deposit_amount} onChange={v => { set('deposit_amount', v); set('loan_amount_requested', Math.max(0, (form.vehicle_price || 0) - v)) }} />
                   <div>
                     <FLabel>Finance Amount Required</FLabel>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">R</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-medium text-sm">R</span>
                       <input className="input-field pl-7 bg-gray-50 font-semibold" value={(form.loan_amount_requested || 0).toLocaleString('en-ZA')} readOnly />
                     </div>
                   </div>
@@ -810,34 +745,32 @@ export default function FinanceApplicationPage({
                   </div>
                 </div>
 
-                {/* Payment estimate */}
                 {form.loan_amount_requested > 0 && (() => {
                   const r = 0.1425 / 12
                   const n = form.preferred_term_months
                   const pmt = (form.loan_amount_requested * r) / (1 - Math.pow(1 + r, -n))
                   const stressed = (form.loan_amount_requested * (0.1675 / 12)) / (1 - Math.pow(1 + (0.1675 / 12), -n))
                   return (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5">
                       <div className="flex justify-between items-start flex-wrap gap-3">
                         <div>
-                          <div className="text-xs text-gray-400 mb-1">Estimated Monthly (prime +2.5%)</div>
-                          <div className="text-2xl font-bold text-dark">R {Math.round(pmt).toLocaleString('en-ZA')}</div>
+                          <div className="text-xs text-muted mb-1">Estimated Monthly (prime +2.5%)</div>
+                          <div className="text-2xl font-bold text-support">R {Math.round(pmt).toLocaleString('en-ZA')}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-xs text-gray-400 mb-1">Stress Test (prime +5%)</div>
+                          <div className="text-xs text-muted mb-1">Stress Test (prime +5%)</div>
                           <div className="text-lg font-semibold text-amber-600">R {Math.round(stressed).toLocaleString('en-ZA')}</div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400 mt-3">Estimates only. Final rate determined by lender based on credit profile.</p>
+                      <p className="text-xs text-muted mt-3">Estimates only. Final rate determined by lender based on credit profile.</p>
                     </div>
                   )
                 })()}
 
-                {/* Trade-in */}
                 <div className="border-t border-gray-100 pt-5">
                   <label className="flex items-center gap-3 cursor-pointer mb-4">
-                    <input type="checkbox" checked={form.trade_in_vehicle} onChange={e => set('trade_in_vehicle', e.target.checked)} className="w-4 h-4 text-gold" />
-                    <span className="font-semibold text-dark text-sm">I have a vehicle to trade in</span>
+                    <input type="checkbox" checked={form.trade_in_vehicle} onChange={e => set('trade_in_vehicle', e.target.checked)} className="w-4 h-4 accent-primary" />
+                    <span className="font-semibold text-support text-sm">I have a vehicle to trade in</span>
                   </label>
                   {form.trade_in_vehicle && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -850,7 +783,6 @@ export default function FinanceApplicationPage({
                   )}
                 </div>
 
-                {/* Banking */}
                 <div className="border-t border-gray-100 pt-5">
                   <SectionHeading icon={<Landmark />} title="Banking Details" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -876,8 +808,8 @@ export default function FinanceApplicationPage({
                     </div>
                     <div className="flex items-center">
                       <label className="flex items-center gap-3 cursor-pointer mt-5">
-                        <input type="checkbox" checked={form.salary_paid_into_this_account} onChange={e => set('salary_paid_into_this_account', e.target.checked)} className="w-4 h-4 text-gold" />
-                        <span className="text-sm font-medium text-dark">Salary paid into this account</span>
+                        <input type="checkbox" checked={form.salary_paid_into_this_account} onChange={e => set('salary_paid_into_this_account', e.target.checked)} className="w-4 h-4 accent-primary" />
+                        <span className="text-sm font-medium text-support">Salary paid into this account</span>
                       </label>
                     </div>
                   </div>
@@ -889,12 +821,11 @@ export default function FinanceApplicationPage({
             {step === 5 && (
               <div className="space-y-5">
                 <SectionHeading icon={<Shield />} title="Credit & Financial Declarations" />
-                <p className="text-sm text-gray-500 -mt-3 leading-relaxed">
+                <p className="text-sm text-muted -mt-3 leading-relaxed">
                   Please answer all questions honestly. These declarations are required by the National Credit Act and are used to assess affordability. Providing false information is an offence.
                 </p>
-
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Current Credit Accounts</p>
+                  <p className="text-xs font-bold text-muted uppercase tracking-wide mb-3">Current Credit Accounts</p>
                   {[
                     { f: 'decl_has_existing_vehicle_finance', l: 'I currently have vehicle finance instalments' },
                     { f: 'decl_has_home_loan',                l: 'I currently have a home loan / bond' },
@@ -905,9 +836,8 @@ export default function FinanceApplicationPage({
                     <DeclRow key={f} label={l} value={form[f]} onChange={v => set(f, v)} warn={false} />
                   ))}
                 </div>
-
                 <div className="space-y-2 pt-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Credit History Declarations</p>
+                  <p className="text-xs font-bold text-muted uppercase tracking-wide mb-3">Credit History Declarations</p>
                   {[
                     { f: 'decl_has_been_blacklisted', l: 'I have previously been listed / blacklisted', warn: true },
                     { f: 'decl_has_judgements',        l: 'I have judgements or adverse credit listings',  warn: true },
@@ -918,9 +848,8 @@ export default function FinanceApplicationPage({
                     <DeclRow key={f} label={l} value={form[f]} onChange={v => set(f, v)} warn={warn} />
                   ))}
                 </div>
-
                 {form.decl_under_debt_review && (
-                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 flex gap-3">
+                  <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex gap-3">
                     <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-red-700">Under the NCA, consumers under debt review may not apply for new credit. You may still submit — our consultant will contact you.</p>
                   </div>
@@ -932,29 +861,16 @@ export default function FinanceApplicationPage({
             {step === 6 && (
               <div className="space-y-7">
                 <SectionHeading icon={<FileText />} title="Supporting Documents" />
-                <p className="text-sm text-gray-500 -mt-3 leading-relaxed">
-                  Upload clear, legible copies. All files are securely stored. Accepted formats: PDF, JPG, PNG.
-                  Documents must be current (not older than 3 months where specified).
+                <p className="text-sm text-muted -mt-3 leading-relaxed">
+                  Upload clear, legible copies. All files are securely stored. Accepted formats: PDF, JPG, PNG. Documents must be current (not older than 3 months where specified).
                 </p>
-
-                {/* ID */}
                 <DocGroup title="Identity Document" required>
                   <DocUpload label="SA ID / Smart Card — Front" required value={form.doc_id_front} onChange={v => set('doc_id_front', v)} />
                   <DocUpload label="SA ID / Smart Card — Back" value={form.doc_id_back} onChange={v => set('doc_id_back', v)} />
                 </DocGroup>
-
-                {/* Proof of residence */}
                 <DocGroup title="Proof of Residence" required subtitle="Not older than 3 months. Accepted: utility bill, municipal rates, bank statement (must show your name and address)">
-                  <DocUpload
-                    label="Proof of Residence"
-                    sublabel="Upload 1–3 documents if needed"
-                    required multiple
-                    value={form.doc_proof_of_residence}
-                    onChange={v => set('doc_proof_of_residence', v)}
-                  />
+                  <DocUpload label="Proof of Residence" sublabel="Upload 1–3 documents if needed" required multiple value={form.doc_proof_of_residence} onChange={v => set('doc_proof_of_residence', v)} />
                 </DocGroup>
-
-                {/* Payslips — employed only */}
                 {(form.employment_status === 'Employed' || form.employment_status === 'Retired') && (
                   <DocGroup title="Payslips / Pension Advice" required subtitle="Last 3 months">
                     <DocUpload label="Most Recent Payslip" required value={form.doc_payslip_month1} onChange={v => set('doc_payslip_month1', v)} />
@@ -962,13 +878,7 @@ export default function FinanceApplicationPage({
                     <DocUpload label="3rd Most Recent Payslip" value={form.doc_payslip_month3} onChange={v => set('doc_payslip_month3', v)} />
                   </DocGroup>
                 )}
-
-                {/* Bank statements — 3 months all, 6 months self-employed */}
-                <DocGroup
-                  title="Bank Statements"
-                  required
-                  subtitle={form.employment_status === 'Self-Employed' ? 'Last 6 months required for self-employed applicants' : 'Last 3 months'}
-                >
+                <DocGroup title="Bank Statements" required subtitle={form.employment_status === 'Self-Employed' ? 'Last 6 months required for self-employed applicants' : 'Last 3 months'}>
                   <DocUpload label="Bank Statement — Month 1 (most recent)" required value={form.doc_bank_statement_month1} onChange={v => set('doc_bank_statement_month1', v)} />
                   <DocUpload label="Bank Statement — Month 2" value={form.doc_bank_statement_month2} onChange={v => set('doc_bank_statement_month2', v)} />
                   <DocUpload label="Bank Statement — Month 3" value={form.doc_bank_statement_month3} onChange={v => set('doc_bank_statement_month3', v)} />
@@ -980,33 +890,16 @@ export default function FinanceApplicationPage({
                     </>
                   )}
                 </DocGroup>
-
-                {/* Financial statements — self-employed only */}
                 {form.employment_status === 'Self-Employed' && (
                   <DocGroup title="Business Financial Statements" subtitle="Latest 2 years AFS, management accounts, or accountant's letter on letterhead">
-                    <DocUpload
-                      label="Financial Statements / Management Accounts"
-                      sublabel="Upload multiple files if needed"
-                      multiple
-                      value={form.doc_financial_statements}
-                      onChange={v => set('doc_financial_statements', v)}
-                    />
+                    <DocUpload label="Financial Statements / Management Accounts" sublabel="Upload multiple files if needed" multiple value={form.doc_financial_statements} onChange={v => set('doc_financial_statements', v)} />
                   </DocGroup>
                 )}
-
-                {/* Existing finance */}
                 {(form.decl_has_existing_vehicle_finance || form.decl_has_personal_loans) && (
                   <DocGroup title="Existing Finance Statements" subtitle="Current settlement letters or latest statements for existing finance accounts">
-                    <DocUpload
-                      label="Existing Finance / Loan Statements"
-                      multiple
-                      value={form.doc_existing_finance}
-                      onChange={v => set('doc_existing_finance', v)}
-                    />
+                    <DocUpload label="Existing Finance / Loan Statements" multiple value={form.doc_existing_finance} onChange={v => set('doc_existing_finance', v)} />
                   </DocGroup>
                 )}
-
-                {/* Other */}
                 <DocGroup title="Any Other Supporting Documents" subtitle="Optional — e.g. rental income proof, dividend statements, divorce settlement">
                   <DocUpload label="Additional Documents" multiple value={form.doc_other} onChange={v => set('doc_other', v)} />
                 </DocGroup>
@@ -1017,42 +910,39 @@ export default function FinanceApplicationPage({
             {step === 7 && (
               <div className="space-y-6">
                 <SectionHeading icon={<CheckCircle />} title="Review & Submit" />
-
-                {/* Summary */}
-                <div className="bg-gray-50 rounded-lg p-5 space-y-2 text-sm">
+                <div className="bg-gray-50 rounded-2xl p-5 space-y-2 text-sm">
                   {[
-                    ['Applicant',      form.full_name],
-                    ['ID Number',      form.id_number],
-                    ['Email',          form.email],
-                    ['Phone',          form.phone],
-                    ['Employment',     `${form.employment_status}${form.employer_name ? ` — ${form.employer_name}` : ''}`],
-                    ['Gross Income',   `R ${(form.gross_monthly_income || 0).toLocaleString('en-ZA')}/month`],
+                    ['Applicant',         form.full_name],
+                    ['ID Number',         form.id_number],
+                    ['Email',             form.email],
+                    ['Phone',             form.phone],
+                    ['Employment',        `${form.employment_status}${form.employer_name ? ` — ${form.employer_name}` : ''}`],
+                    ['Gross Income',      `R ${(form.gross_monthly_income || 0).toLocaleString('en-ZA')}/month`],
                     ['Total Obligations', `R ${totalObligations.toLocaleString('en-ZA')}/month`],
-                    ['Vehicle',        vehicleDetails || 'Not specified'],
-                    ['Loan Amount',    `R ${(form.loan_amount_requested || 0).toLocaleString('en-ZA')}`],
-                    ['Deposit',        `R ${(form.deposit_amount || 0).toLocaleString('en-ZA')}`],
-                    ['Term',           `${form.preferred_term_months} months`],
+                    ['Vehicle',           vehicleDetails || 'Not specified'],
+                    ['Loan Amount',       `R ${(form.loan_amount_requested || 0).toLocaleString('en-ZA')}`],
+                    ['Deposit',           `R ${(form.deposit_amount || 0).toLocaleString('en-ZA')}`],
+                    ['Term',              `${form.preferred_term_months} months`],
                   ].map(([l, v]) => (
                     <div key={l} className="flex justify-between py-1 border-b border-gray-100 last:border-0">
-                      <span className="text-gray-500">{l}</span>
-                      <span className="font-semibold text-dark text-right max-w-[55%]">{v || '—'}</span>
+                      <span className="text-muted">{l}</span>
+                      <span className="font-semibold text-support text-right max-w-[55%]">{v || '—'}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Document checklist */}
-                <div className="bg-gray-50 rounded-lg p-5">
-                  <p className="text-sm font-bold text-dark mb-3">Documents Uploaded</p>
+                <div className="bg-gray-50 rounded-2xl p-5">
+                  <p className="text-sm font-bold text-support mb-3">Documents Uploaded</p>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     {[
-                      ['SA ID Front',         !!form.doc_id_front],
-                      ['Proof of Residence',  form.doc_proof_of_residence?.length > 0],
-                      ['Payslip Month 1',     !!form.doc_payslip_month1],
-                      ['Bank Statement M1',   !!form.doc_bank_statement_month1],
-                      ['Bank Statement M2',   !!form.doc_bank_statement_month2],
-                      ['Bank Statement M3',   !!form.doc_bank_statement_month3],
+                      ['SA ID Front',        !!form.doc_id_front],
+                      ['Proof of Residence', form.doc_proof_of_residence?.length > 0],
+                      ['Payslip Month 1',    !!form.doc_payslip_month1],
+                      ['Bank Statement M1',  !!form.doc_bank_statement_month1],
+                      ['Bank Statement M2',  !!form.doc_bank_statement_month2],
+                      ['Bank Statement M3',  !!form.doc_bank_statement_month3],
                     ].map(([label, done]) => (
-                      <div key={label as string} className={`flex items-center gap-2 ${done ? 'text-green-700' : 'text-gray-400'}`}>
+                      <div key={label as string} className={`flex items-center gap-2 ${done ? 'text-green-700' : 'text-muted'}`}>
                         {done ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
                         {label as string}
                       </div>
@@ -1060,24 +950,23 @@ export default function FinanceApplicationPage({
                   </div>
                 </div>
 
-                {/* Consents */}
                 <div className="space-y-3">
-                  <p className="text-sm font-bold text-dark">Required Consents</p>
+                  <p className="text-sm font-bold text-support">Required Consents</p>
                   {[
-                    { f: 'consent_popia',         l: 'I consent to the collection and processing of my personal information in terms of the Protection of Personal Information Act (POPIA).' },
-                    { f: 'consent_credit_check',  l: 'I consent to IC Cars and its finance partners performing credit bureau inquiries on my profile.' },
-                    { f: 'consent_contact',       l: 'I consent to being contacted by an IC Cars consultant via phone, email, or WhatsApp.' },
-                    { f: 'consent_terms',         l: 'I confirm all information is accurate and complete to the best of my knowledge, and I understand that false declarations are an offence under the NCA.' },
+                    { f: 'consent_popia',        l: 'I consent to the collection and processing of my personal information in terms of the Protection of Personal Information Act (POPIA).' },
+                    { f: 'consent_credit_check', l: 'I consent to Mtsinso Car Sales and its finance partners performing credit bureau inquiries on my profile.' },
+                    { f: 'consent_contact',      l: 'I consent to being contacted by a Mtsinso Car Sales consultant via phone, email, or WhatsApp.' },
+                    { f: 'consent_terms',        l: 'I confirm all information is accurate and complete to the best of my knowledge, and I understand that false declarations are an offence under the NCA.' },
                   ].map(({ f, l }) => (
                     <label key={f} className="flex items-start gap-3 cursor-pointer">
-                      <input type="checkbox" checked={form[f]} onChange={e => set(f, e.target.checked)} className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
+                      <input type="checkbox" checked={form[f]} onChange={e => set(f, e.target.checked)} className="w-4 h-4 accent-primary mt-0.5 flex-shrink-0" />
                       <span className="text-sm text-gray-600 leading-relaxed">{l}</span>
                     </label>
                   ))}
                 </div>
 
-                <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
-                  IC Cars (Pty) Ltd acts as an intermediary between applicants and registered credit providers and is not itself a registered credit provider. All applications are subject to the National Credit Act 34 of 2005. Your information is processed in accordance with POPIA.
+                <p className="text-xs text-muted leading-relaxed border-t border-gray-100 pt-4">
+                  Mtsinso Car Sales acts as an intermediary between applicants and registered credit providers and is not itself a registered credit provider. All applications are subject to the National Credit Act 34 of 2005. Your information is processed in accordance with POPIA.
                 </p>
               </div>
             )}
@@ -1090,17 +979,13 @@ export default function FinanceApplicationPage({
               type="button"
               onClick={() => setStep(s => s - 1)}
               disabled={step === 1}
-              className="btn-hollow btn-hollow-gold disabled:opacity-30 flex items-center gap-2 py-2"
+              className="btn-outline disabled:opacity-30 flex items-center gap-2"
             >
               <ChevronLeft className="w-4 h-4" /> Back
             </button>
 
             {step < 7 ? (
-              <button
-                type="button"
-                onClick={() => setStep(s => s + 1)}
-                className="btn-filled btn-filled-gold flex items-center gap-2"
-              >
+              <button type="button" onClick={() => setStep(s => s + 1)} className="btn-primary flex items-center gap-2">
                 Continue <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
@@ -1108,15 +993,16 @@ export default function FinanceApplicationPage({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting || !form.consent_popia || !form.consent_credit_check || !form.consent_contact || !form.consent_terms}
-                className="btn-filled btn-filled-gold disabled:opacity-50 flex items-center gap-2"
+                className="btn-primary disabled:opacity-50 flex items-center gap-2"
               >
-                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting...</> : <><CheckCircle className="w-4 h-4" />Submit Application</>}
+                {submitting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting...</>
+                  : <><CheckCircle className="w-4 h-4" />Submit Application</>
+                }
               </button>
             )}
           </div>
         </div>
-
-       
       </div>
     </div>
   )
@@ -1126,16 +1012,16 @@ export default function FinanceApplicationPage({
 function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
     <div className="flex items-center gap-3 mb-2">
-      <div className="w-8 h-8 bg-gold/10 flex items-center justify-center text-gold flex-shrink-0">
+      <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center text-primary flex-shrink-0">
         {icon}
       </div>
-      <h2 className="text-xl font-display text-dark">{title}</h2>
+      <h2 className="text-xl font-display text-support">{title}</h2>
     </div>
   )
 }
 
 function FLabel({ children }: { children: React.ReactNode }) {
-  return <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">{children}</label>
+  return <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{children}</label>
 }
 
 function RandField({ label, value, onChange, placeholder }: { label: string; value: number; onChange: (v: number) => void; placeholder?: string }) {
@@ -1143,7 +1029,7 @@ function RandField({ label, value, onChange, placeholder }: { label: string; val
     <div>
       <FLabel>{label}</FLabel>
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">R</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-medium text-sm">R</span>
         <input
           type="number" min="0"
           className="input-field pl-7"
@@ -1158,9 +1044,9 @@ function RandField({ label, value, onChange, placeholder }: { label: string; val
 
 function DeclRow({ label, value, onChange, warn }: { label: string; value: boolean; onChange: (v: boolean) => void; warn: boolean }) {
   return (
-    <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${value ? (warn ? 'bg-red-50 border-red-200' : 'bg-gold/5 border-gold/30') : 'border-gray-100 hover:bg-gray-50'}`}>
-      <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} className="w-4 h-4 text-gold flex-shrink-0" />
-      <span className={`text-sm font-medium ${value && warn ? 'text-red-700' : 'text-dark'}`}>{label}</span>
+    <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${value ? (warn ? 'bg-red-50 border-red-200' : 'bg-primary/5 border-primary/30') : 'border-gray-100 hover:bg-gray-50'}`}>
+      <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} className="w-4 h-4 accent-primary flex-shrink-0" />
+      <span className={`text-sm font-medium ${value && warn ? 'text-red-700' : 'text-support'}`}>{label}</span>
       {value && warn && <AlertCircle className="w-4 h-4 text-red-500 ml-auto flex-shrink-0" />}
     </label>
   )
@@ -1168,13 +1054,13 @@ function DeclRow({ label, value, onChange, warn }: { label: string; value: boole
 
 function DocGroup({ title, subtitle, required, children }: { title: string; subtitle?: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="border border-gray-100 rounded-lg p-5 space-y-4">
+    <div className="border border-gray-100 rounded-2xl p-5 space-y-4">
       <div>
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold text-dark">{title}</h3>
+          <h3 className="text-sm font-bold text-support">{title}</h3>
           {required && <span className="text-xs text-red-500 font-bold">Required</span>}
         </div>
-        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
       </div>
       {children}
     </div>
